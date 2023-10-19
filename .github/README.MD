@@ -4,9 +4,35 @@ saint-lascivious (Hayden Pearce) ©2023
 A simple generic yet flexible `keepalived` check and/or notify script.
 
 # Script
+
+## Install
+All commands given are assumed to be run as `root` or equivalent (with `sudo`).
+
+Create the directory `throwawaydeadd` and its symbolic links will live:
+```
+mkdir /etc/scripts
+```
+
+Navigate to that directory:
+```
+cd /etc/scripts
+```
+
+Download the `throwawaydeadd` script using `wget`:
+```
+wget https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd
+```
+
+Review or modify the script if desired, and ensure it is executable:
+```
+chmod +x throwawaydeadd
+```
+
 The basename and file extension will dictate the service to monitor and the function to perform respectively.
 
 The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`.
+
+All examples going forward will assume that the service to be monitored is named `Example-Service`.
 
 Example:
 ```
@@ -31,8 +57,18 @@ STATE_DIR="/var/log/"  # Directory in which *.lock and *.state files are kept.
 # Config
 MASTER to BACKUP failover, with fast fall and slow rise.
 
+The following examples assume that the service to be monitored is `Example-Service`, that there is a MASTER running on `192.168.1.10` and a BACKUP running on `192.168.1.20`, and that the virtual router IP address is `192.168.1.99` on the `eth0` interface.
+
+The example service is checked with an interval of `5` seconds, and a timeout of `4` seconds. The advertisement interval is `1` second. The priority of an instance will fall after `2` successive failures (`10` seconds), and only rise again after `12` successive successes (`60` seconds).
+
+The MASTER has a starting priority of `150`, and the BACKUP has a starting priority of `145`. The weight value is `-10`.
+
+The default shared password is `default`.
+
+All instances of `Example-Service` should be replaced with the service state to which you wish to attach a virtual IP address.
+
 ## MASTER
-Example `keepalived.conf` for master server.
+Example `keepalived.conf` for MASTER server.
 ```
 global_defs {
     router_id MASTER
@@ -61,7 +97,7 @@ vrrp_instance EXAMPLE_SERVICE {
     }
     authentication {
         auth_type PASS
-        auth_pass sdWejwse
+        auth_pass default
     }
     virtual_ipaddress {
         192.168.1.99/24
@@ -74,7 +110,7 @@ vrrp_instance EXAMPLE_SERVICE {
 ```
 
 ## BACKUP
-Example `keepalived.conf` for backup server.
+Example `keepalived.conf` for BACKUP server.
 ```
 global_defs {
     router_id BACKUP
@@ -103,7 +139,7 @@ vrrp_instance EXAMPLE_SERVICE {
     }
     authentication {
         auth_type PASS
-        auth_pass sdWejwse
+        auth_pass default
     }
     virtual_ipaddress {
         192.168.1.99/24
