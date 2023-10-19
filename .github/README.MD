@@ -1,7 +1,6 @@
 # throwawaydeadd
-## saint-lascivious (Hayden Pearce) ©2023
+saint-lascivious (Hayden Pearce) ©2023
 
-## Description
 A simple generic yet flexible `keepalived` check and/or notify script.
 
 # Script
@@ -9,7 +8,7 @@ The basename and file extension will dictate the service to monitor and the func
 
 The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`.
 
-## Example:
+Example:
 ```
 ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check
 ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify
@@ -17,7 +16,7 @@ ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify
 
 To indicate that they should function primarily as a MASTER server rather than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
 
-## Example:
+Example:
 ```
 touch /etc/scripts/.is_master_server
 ```
