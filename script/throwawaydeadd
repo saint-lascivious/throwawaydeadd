@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+
+# throwawaydeadd
+# saint-lascivious (Hayden Pearce) ©2023
+
+# The basename and file extension will dictate the service to monitor
+# and the function to perform respectively.
+#
+# The service name MUST be an exact match, and the extension MUST be one of
+# check, CHECK, notify or NOTIFY.
+#
+# Example:
+# ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check
+# ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify
+#
+# To indicate that they should function primarily as a MASTER server rather
+# than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
+#
+# Example:
+# touch /etc/scripts/.is_master_server
+
+MASTER_FLAG_FILE="/etc/scripts/.is_master_server"  # MASTER server trigger file.
+MAX_STATE_AGE="4"  # The time in seconds before saved state considered stale.
+STATE_DIR="/var/log/"  # Directory in which *.lock and *.state files are kept.
+
+LINK_NAME="$(basename "$0")"  # Stuffs for services, functions and states.
+SERVICE_NAME="${LINK_NAME%.*}"
+VRRP_FUNCTION="${LINK_NAME##*.}"
+LOCK_FILE="${STATE_DIR}${SERVICE_NAME}-${VRRP_FUNCTION}.lock" # Instance lock.
+CURRENT_TIME="$(date +%s)"  # Stuffs for saving service states.
+STATE_FILE="${STATE_DIR}${SERVICE_NAME}.state"
+STATE_LAST_MODIFIED="$(stat -c %Y "${STATE_FILE}")"
+STATE_AGE="$(("${CURRENT_TIME}" - "${STATE_LAST_MODIFIED}"))"
+
+IS_MASTER="false"  # SHOULD NOT edit, use trigger file described above.
+
+exec 9>"$LOCK_FILE"  # MUST obtain an exclusive lock
+if flock -n 9; then
+    SERVICE_STATE="$(systemctl is-active "$SERVICE_NAME")"
+    case $VRRP_FUNCTION in
+        "check"|"CHECK")
+            if [ -f "${STATE_FILE}" ] && [ "${STATE_AGE}" -le "${MAX_STATE_AGE}" ]; then
+                SAVED_STATE="$(cat "${STATE_FILE}")"  # Return a saved state
+                if [ "${SAVED_STATE}" = "active" ]; then  # Prevent 'ping-pong'
+                    exit 0
+                else
+                    exit 1
+                fi
+            else
+                exec 8>"$STATE_FILE"  # MUST obtain an exclusive lock
+                if flock -n 8; then
+                    echo "${SERVICE_STATE}" > "${STATE_FILE}"  # Save state.
+                    if [ "${SERVICE_STATE}" = "active" ]; then
+                        exit 0
+                    else
+                        exit 1
+                    fi
+                fi
+            fi
+        ;;
+        "notify"|"NOTIFY")
+            VRRP_STATE="$3"
+            if [ -f "$MASTER_FLAG_FILE" ]; then
+                IS_MASTER="true"
+            fi
+            case $VRRP_STATE in
+                "backup"|"BACKUP")
+                    if [ "$IS_MASTER" = "true" ]; then
+                        case $SERVICE_STATE in
+                            #"active")  # Remove comments to restart even
+                            #    if the service is already active.
+                            #    systemctl restart "${SERVICE_NAME}"
+                            #    exit 0
+                            #;;
+                            "inactive")  # Start the service if inactive.
+                                systemctl start "${SERVICE_NAME}"
+                                exit 0
+                            ;;
+                        esac
+                    else  # Default logic is duplicated, do what you want.
+                        case $SERVICE_STATE in
+                            #"active")  # Remove comments to restart even
+                            #    if the service is already active.
+                            #    systemctl restart "${SERVICE_NAME}"
+                            #    exit 0
+                            #;;
+                            "inactive")  # Start the service if inactive.
+                                systemctl start "${SERVICE_NAME}"
+                                exit 0
+                            ;;
+                        esac
+                    fi
+                ;;
+                "master"|"MASTER")
+                    if [ "$IS_MASTER" = "true" ]; then
+                        case $SERVICE_STATE in
+                            #"active")  # Remove comments to restart even
+                            #    if the service is already active.
+                            #    systemctl restart "${SERVICE_NAME}"
+                            #    exit 0
+                            #;;
+                            "inactive")  # Start the service if inactive.
+                                systemctl start "${SERVICE_NAME}"
+                                exit 0
+                            ;;
+                        esac
+                    else  # Default logic is duplicated, do what you want.
+                        case $SERVICE_STATE in
+                            #"active")  # Remove comments to restart even
+                            #    if the service is already active.
+                            #    systemctl restart "${SERVICE_NAME}"
+                            #    exit 0
+                            #;;
+                            "inactive")  # Start the service if inactive.
+                                systemctl start "${SERVICE_NAME}"
+                                exit 0
+                            ;;
+                        esac
+                    fi
+                ;;
+            esac
+        ;;
+    esac
+fi
