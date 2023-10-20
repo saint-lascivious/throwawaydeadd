@@ -1,25 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # throwawaydeadd
 # saint-lascivious (Hayden Pearce) ©2023
 
 # GNU General Public License Version 3
-
-# The basename and file extension will dictate the service to monitor
-# and the function to perform respectively.
-#
-# The service name MUST be an exact match, and the extension MUST be one of
-# check, CHECK, notify or NOTIFY.
-#
-# Example:
-# ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check
-# ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify
-#
-# To indicate that they should function primarily as a MASTER server rather
-# than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
-#
-# Example:
-# touch /etc/scripts/.is_master_server
 
 master_flag_file="/etc/scripts/.is_master_server"  # MASTER server trigger file.
 max_statge_age="4"  # The time in seconds before saved state considered stale.
