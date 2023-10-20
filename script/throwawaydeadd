@@ -19,100 +19,126 @@
 # Example:
 # touch /etc/scripts/.is_master_server
 
-MASTER_FLAG_FILE="/etc/scripts/.is_master_server"  # MASTER server trigger file.
-MAX_STATE_AGE="4"  # The time in seconds before saved state considered stale.
-STATE_DIR="/var/log/"  # Directory in which *.lock and *.state files are kept.
+master_flag_file="/etc/scripts/.is_master_server"  # MASTER server trigger file.
+max_statge_age="4"  # The time in seconds before saved state considered stale.
+state_dir="/var/log/"  # Directory in which *.lock and *.state files are kept.
 
-LINK_NAME="$(basename "$0")"  # Stuffs for services, functions and states.
-SERVICE_NAME="${LINK_NAME%.*}"
-VRRP_FUNCTION="${LINK_NAME##*.}"
-LOCK_FILE="${STATE_DIR}${SERVICE_NAME}-${VRRP_FUNCTION}.lock" # Instance lock.
-CURRENT_TIME="$(date +%s)"  # Stuffs for saving service states.
-STATE_FILE="${STATE_DIR}${SERVICE_NAME}.state"
-STATE_LAST_MODIFIED="$(stat -c %Y "${STATE_FILE}")"
-STATE_AGE="$(("${CURRENT_TIME}" - "${STATE_LAST_MODIFIED}"))"
+script_name="$(basename "$0")"  # Stuffs for services, functions and states.
+service_name="${script_name%.*}"
+vrrp_function="${script_name##*.}"
+lock_file="${state_dir}${service_name}-${vrrp_function}.lock" # Instance lock.
+current_time="$(date +%s)"  # Stuffs for saving service states.
+state_file="${state_dir}${service_name}.state"
+state_last_modified="$(stat -c %Y "${state_file}")"
+state_age="$(("${current_time}" - "${state_last_modified}"))"
 
-IS_MASTER="false"  # SHOULD NOT edit, use trigger file described above.
+is_master="false"  # SHOULD NOT edit, use trigger file described above.
 
-exec 9>"$LOCK_FILE"  # MUST obtain an exclusive lock
+log() {
+    message="$1"
+    log_level="$2"
+    case "$log_level" in
+        "info")
+            echo "INFO: $message"
+        ;;
+        "warning")
+            echo "WARNING: $message" >&2
+        ;;
+        "error")
+            echo "ERROR: $message" >&2
+        ;;
+        *)
+            echo "UNKNOWN LOG LEVEL: $message" >&2
+        ;;
+    esac
+}
+
+exec 9>"$lock_file"  # MUST obtain an exclusive lock
 if flock -n 9; then
-    SERVICE_STATE="$(systemctl is-active "$SERVICE_NAME")"
-    case $VRRP_FUNCTION in
+    if command -v systemctl > /dev/null 2>&1; then
+        service_state="$(systemctl is-active "$service_name")"
+    else
+        log "systemctl is not available on this system" error
+        exit 1
+    fi
+    case $vrrp_function in
         "check"|"CHECK")
-            if [ -f "${STATE_FILE}" ] && [ "${STATE_AGE}" -le "${MAX_STATE_AGE}" ]; then
-                SAVED_STATE="$(cat "${STATE_FILE}")"  # Return a saved state
-                if [ "${SAVED_STATE}" = "active" ]; then  # Prevent 'ping-pong'
+            if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_statge_age}" ]; then
+                saved_state="$(cat "${state_file}")"  # Return a saved state
+                if [ "${saved_state}" = "active" ]; then  # Prevent 'ping-pong'
                     exit 0
                 else
                     exit 1
                 fi
             else
-                exec 8>"$STATE_FILE"  # MUST obtain an exclusive lock
+                exec 8>"$state_file"  # MUST obtain an exclusive lock
                 if flock -n 8; then
-                    echo "${SERVICE_STATE}" > "${STATE_FILE}"  # Save state.
-                    if [ "${SERVICE_STATE}" = "active" ]; then
+                    echo "${service_state}" > "${state_file}"  # Save state.
+                    if [ "${service_state}" = "active" ]; then
                         exit 0
                     else
                         exit 1
                     fi
+                else
+                    log "failed to obtain a lock to write state" warning
                 fi
             fi
         ;;
         "notify"|"NOTIFY")
-            VRRP_STATE="$3"
-            if [ -f "$MASTER_FLAG_FILE" ]; then
-                IS_MASTER="true"
+            vrrp_state="$3"
+            if [ -f "$master_flag_file" ]; then
+                is_master="true"
             fi
-            case $VRRP_STATE in
+            case $vrrp_state in
                 "backup"|"BACKUP")
-                    if [ "$IS_MASTER" = "true" ]; then
-                        case $SERVICE_STATE in
+                    if [ "$is_master" = "true" ]; then
+                        case $service_state in
                             #"active")  # Remove comments to restart even
                             #    if the service is already active.
-                            #    systemctl restart "${SERVICE_NAME}"
+                            #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
                             "inactive")  # Start the service if inactive.
-                                systemctl start "${SERVICE_NAME}"
+                                systemctl start "${service_name}"
                                 exit 0
                             ;;
                         esac
                     else  # Default logic is duplicated, do what you want.
-                        case $SERVICE_STATE in
+                        case $service_state in
                             #"active")  # Remove comments to restart even
                             #    if the service is already active.
-                            #    systemctl restart "${SERVICE_NAME}"
+                            #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
                             "inactive")  # Start the service if inactive.
-                                systemctl start "${SERVICE_NAME}"
+                                systemctl start "${service_name}"
                                 exit 0
                             ;;
                         esac
                     fi
                 ;;
                 "master"|"MASTER")
-                    if [ "$IS_MASTER" = "true" ]; then
-                        case $SERVICE_STATE in
+                    if [ "$is_master" = "true" ]; then
+                        case $service_state in
                             #"active")  # Remove comments to restart even
                             #    if the service is already active.
-                            #    systemctl restart "${SERVICE_NAME}"
+                            #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
                             "inactive")  # Start the service if inactive.
-                                systemctl start "${SERVICE_NAME}"
+                                systemctl start "${service_name}"
                                 exit 0
                             ;;
                         esac
                     else  # Default logic is duplicated, do what you want.
-                        case $SERVICE_STATE in
+                        case $service_state in
                             #"active")  # Remove comments to restart even
                             #    if the service is already active.
-                            #    systemctl restart "${SERVICE_NAME}"
+                            #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
                             "inactive")  # Start the service if inactive.
-                                systemctl start "${SERVICE_NAME}"
+                                systemctl start "${service_name}"
                                 exit 0
                             ;;
                         esac
@@ -121,4 +147,6 @@ if flock -n 9; then
             esac
         ;;
     esac
+else
+    log "failed to obtain a lock" error
 fi
