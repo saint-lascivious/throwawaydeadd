@@ -3,6 +3,8 @@
 # throwawaydeadd
 # saint-lascivious (Hayden Pearce) ©2023
 
+# GNU General Public License Version 3
+
 # The basename and file extension will dictate the service to monitor
 # and the function to perform respectively.
 #
@@ -41,10 +43,10 @@ log() {
         "info")
             echo "INFO: $message"
         ;;
-        "warning")
+        "warn"|"warning")
             echo "WARNING: $message" >&2
         ;;
-        "error")
+        "err"|"error")
             echo "ERROR: $message" >&2
         ;;
         *)
@@ -92,9 +94,9 @@ if flock -n 9; then
             case $vrrp_state in
                 "backup"|"BACKUP")
                     if [ "$is_master" = "true" ]; then
+                        log "MASTER entered BACKUP state" warning
                         case $service_state in
-                            #"active")  # Remove comments to restart even
-                            #    if the service is already active.
+                            #"active")  # Uncomment to restart even if active
                             #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
@@ -104,9 +106,9 @@ if flock -n 9; then
                             ;;
                         esac
                     else  # Default logic is duplicated, do what you want.
+                        log "BACKUP entered BACKUP state" info
                         case $service_state in
-                            #"active")  # Remove comments to restart even
-                            #    if the service is already active.
+                            #"active")  # Uncomment to restart even if active
                             #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
@@ -119,9 +121,9 @@ if flock -n 9; then
                 ;;
                 "master"|"MASTER")
                     if [ "$is_master" = "true" ]; then
+                        log "MASTER entered MASTER state" info
                         case $service_state in
-                            #"active")  # Remove comments to restart even
-                            #    if the service is already active.
+                            #"active")  # Uncomment to restart even if active
                             #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
@@ -131,9 +133,9 @@ if flock -n 9; then
                             ;;
                         esac
                     else  # Default logic is duplicated, do what you want.
+                        log "BACKUP entered MASTER state" warning
                         case $service_state in
-                            #"active")  # Remove comments to restart even
-                            #    if the service is already active.
+                            #"active")  # Uncomment to restart even if active
                             #    systemctl restart "${service_name}"
                             #    exit 0
                             #;;
