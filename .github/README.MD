@@ -1,9 +1,9 @@
-# throwawaydeadd
+# [throwawaydeadd](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd "Link to throwawaydeadd script")
 saint-lascivious (Hayden Pearce) ©2023
 
 A simple generic yet flexible `keepalived` check and/or notify script.
 
-# Script
+# [Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to script folder")
 
 ## Install
 All commands given are assumed to be run as `root` or equivalent (with `sudo`).
@@ -54,7 +54,7 @@ MAX_STATE_AGE="4"  # The time in seconds before saved state considered stale.
 STATE_DIR="/var/log/"  # Directory in which *.lock and *.state files are kept.
 ```
 
-# Config
+# [Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to config folder")
 MASTER to BACKUP failover, with fast fall and slow rise.
 
 The following examples assume that the service to be monitored is `Example-Service`, that there is a MASTER running on `192.168.1.10` and a BACKUP running on `192.168.1.20`, and that the virtual router IP address is `192.168.1.99` on the `eth0` interface.
@@ -65,10 +65,12 @@ The MASTER has a starting priority of `150`, and the BACKUP has a starting prior
 
 The default shared password is `default`.
 
-All instances of `Example-Service` should be replaced with the service state to which you wish to attach a virtual IP address.
+The Virtual Router ID (`99`) reflecting the final digits of the Virtual IP Address (`192.168.1.99`) is strictly for convenience/memory association.
 
-## MASTER
-Example `keepalived.conf` for MASTER server.
+Once again, any/all instances of `Example-Service`/`EXAMPLE_SERVICE` used in the examples should be replaced with the exact (case sensitive) service name to whose state you wish to attach your virtual IP address.
+
+## [MASTER](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to MASTER config folder")
+Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/config/MASTER/keepalived.conf "Link to example MASTER keepalived.conf") for MASTER server:
 ```
 global_defs {
     router_id MASTER
@@ -109,8 +111,8 @@ vrrp_instance EXAMPLE_SERVICE {
 }
 ```
 
-## BACKUP
-Example `keepalived.conf` for BACKUP server.
+## [BACKUP](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to BACKUP config folder")
+Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/config/BACKUP/keepalived.conf "Link to example BACKUP keepalived.conf") for BACKUP server:
 ```
 global_defs {
     router_id BACKUP
