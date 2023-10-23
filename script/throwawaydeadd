@@ -6,13 +6,13 @@
 # GNU General Public License Version 3
 
 master_flag_file="/etc/scripts/.is_master_server"  # MASTER server trigger file.
-max_statge_age="4"  # The time in seconds before saved state considered stale.
-state_dir="/var/log/"  # Directory in which *.lock and *.state files are kept.
+max_statge_age="4"  # Time in seconds before saved state is considered stale.
+state_dir="/var/log"  # Directory in which *.lock and *.state files are kept.
 
 script_name="$(basename "$0")"  # Stuffs for services, functions and states.
 service_name="${script_name%.*}"
 vrrp_function="${script_name##*.}"
-lock_file="${state_dir}${service_name}-${vrrp_function}.lock" # Instance lock.
+lock_file="${state_dir}/${service_name}-${vrrp_function}.lock" # Instance lock.
 current_time="$(date +%s)"  # Stuffs for saving service states.
 state_file="${state_dir}${service_name}.state"
 state_last_modified="$(stat -c %Y "${state_file}")"
@@ -34,7 +34,7 @@ log() {
             echo "ERROR: $message" >&2
         ;;
         *)
-            echo "UNKNOWN LOG LEVEL: $message" >&2
+            echo "UNKNOWN: $message" >&2
         ;;
     esac
 }
@@ -44,7 +44,7 @@ if flock -n 9; then
     if command -v systemctl > /dev/null 2>&1; then
         service_state="$(systemctl is-active "$service_name")"
     else
-        log "systemctl is not available on this system" error
+        log "command 'systemctl' is not available" error
         exit 1
     fi
     case $vrrp_function in
@@ -52,8 +52,10 @@ if flock -n 9; then
             if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_statge_age}" ]; then
                 saved_state="$(cat "${state_file}")"  # Return a saved state
                 if [ "${saved_state}" = "active" ]; then  # Prevent 'ping-pong'
+                    log "{service_name} saved state is active" info
                     exit 0
                 else
+                    log "{service_name} saved state is not active" warning
                     exit 1
                 fi
             else
@@ -61,8 +63,10 @@ if flock -n 9; then
                 if flock -n 8; then
                     echo "${service_state}" > "${state_file}"  # Save state.
                     if [ "${service_state}" = "active" ]; then
+                        log "{service_name} is active" info
                         exit 0
                     else
+                        log "{service_name} is not active" warning
                         exit 1
                     fi
                 else
