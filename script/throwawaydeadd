@@ -25,16 +25,13 @@ log() {
     log_level="$2"
     case "$log_level" in
         "info")
-            echo "INFO: $message"
+            echo "INFO: $message"  >&1
         ;;
         "warn"|"warning")
-            echo "WARNING: $message" >&2
+            echo "WARNING: $message" >&1
         ;;
         "err"|"error")
             echo "ERROR: $message" >&2
-        ;;
-        *)
-            echo "UNKNOWN: $message" >&2
         ;;
     esac
 }
