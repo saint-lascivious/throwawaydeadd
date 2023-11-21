@@ -24,14 +24,11 @@ log() {
     message="$1"
     log_level="$2"
     case "$log_level" in
-        "info")
-            echo "INFO: $message"  >&1
+        "INFO" | "WARNING")
+            echo "${log_level}: $message"  >&1
         ;;
-        "warn"|"warning")
-            echo "WARNING: $message" >&1
-        ;;
-        "err"|"error")
-            echo "ERROR: $message" >&2
+        "ERROR")
+            echo "${log_level}: $message" >&2
         ;;
     esac
 }
@@ -41,7 +38,7 @@ if flock -n 9; then
     if command -v systemctl > /dev/null 2>&1; then
         service_state="$(systemctl is-active "$service_name")"
     else
-        log "command 'systemctl' is not available" error
+        log "command 'systemctl' is not available" ERROR
         exit 1
     fi
     case $vrrp_function in
@@ -49,10 +46,10 @@ if flock -n 9; then
             if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_statge_age}" ]; then
                 saved_state="$(cat "${state_file}")"  # Return a saved state
                 if [ "${saved_state}" = "active" ]; then  # Prevent 'ping-pong'
-                    log "{service_name} saved state is active" info
+                    log "{service_name} saved state is active" INFO
                     exit 0
                 else
-                    log "{service_name} saved state is not active" warning
+                    log "{service_name} saved state is not active" WARNING
                     exit 1
                 fi
             else
@@ -60,14 +57,14 @@ if flock -n 9; then
                 if flock -n 8; then
                     echo "${service_state}" > "${state_file}"  # Save state.
                     if [ "${service_state}" = "active" ]; then
-                        log "{service_name} is active" info
+                        log "{service_name} is active" INFO
                         exit 0
                     else
-                        log "{service_name} is not active" warning
+                        log "{service_name} is not active" WARNING
                         exit 1
                     fi
                 else
-                    log "failed to obtain a lock to write state" warning
+                    log "failed to obtain a lock to write state" WARNING
                 fi
             fi
         ;;
@@ -79,7 +76,7 @@ if flock -n 9; then
             case $vrrp_state in
                 "backup"|"BACKUP")
                     if [ "$is_master" = "true" ]; then
-                        log "MASTER entered BACKUP state" warning
+                        log "MASTER entered BACKUP state" WARNING
                         case $service_state in
                             "active")  # Uncomment to restart even if active
                                 #systemctl restart "${service_name}"
@@ -91,7 +88,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else  # Default logic is duplicated, do what you want.
-                        log "BACKUP entered BACKUP state" info
+                        log "BACKUP entered BACKUP state" INFO
                         case $service_state in
                             "active")  # Uncomment to restart even if active
                                 #systemctl restart "${service_name}"
@@ -106,7 +103,7 @@ if flock -n 9; then
                 ;;
                 "master"|"MASTER")
                     if [ "$is_master" = "true" ]; then
-                        log "MASTER entered MASTER state" info
+                        log "MASTER entered MASTER state" INFO
                         case $service_state in
                             "active")  # Uncomment to restart even if active
                                 #systemctl restart "${service_name}"
@@ -118,7 +115,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else  # Default logic is duplicated, do what you want.
-                        log "BACKUP entered MASTER state" warning
+                        log "BACKUP entered MASTER state" WARNING
                         case $service_state in
                             "active")  # Uncomment to restart even if active
                                 #systemctl restart "${service_name}"
@@ -135,5 +132,5 @@ if flock -n 9; then
         ;;
     esac
 else
-    log "failed to obtain a lock" error
+    log "failed to obtain a lock" WARNING
 fi
