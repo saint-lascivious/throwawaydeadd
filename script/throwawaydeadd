@@ -14,7 +14,7 @@ service_name="${script_name%.*}"
 vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock" # Instance lock.
 current_time="$(date +%s)"  # Stuffs for saving service states.
-state_file="${state_dir}${service_name}.state"
+state_file="${state_dir}/${service_name}.state"
 state_last_modified="$(stat -c %Y "${state_file}")"
 state_age="$(("${current_time}" - "${state_last_modified}"))"
 
@@ -84,10 +84,10 @@ if flock -n 9; then
                     if [ "$is_master" = "true" ]; then
                         log "MASTER entered BACKUP state" warning
                         case $service_state in
-                            #"active")  # Uncomment to restart even if active
-                            #    systemctl restart "${service_name}"
-                            #    exit 0
-                            #;;
+                            "active")  # Uncomment to restart even if active
+                                #systemctl restart "${service_name}"
+                                exit 0
+                            ;;
                             "inactive")  # Start the service if inactive.
                                 systemctl start "${service_name}"
                                 exit 0
@@ -96,10 +96,10 @@ if flock -n 9; then
                     else  # Default logic is duplicated, do what you want.
                         log "BACKUP entered BACKUP state" info
                         case $service_state in
-                            #"active")  # Uncomment to restart even if active
-                            #    systemctl restart "${service_name}"
-                            #    exit 0
-                            #;;
+                            "active")  # Uncomment to restart even if active
+                                #systemctl restart "${service_name}"
+                                exit 0
+                            ;;
                             "inactive")  # Start the service if inactive.
                                 systemctl start "${service_name}"
                                 exit 0
@@ -111,10 +111,10 @@ if flock -n 9; then
                     if [ "$is_master" = "true" ]; then
                         log "MASTER entered MASTER state" info
                         case $service_state in
-                            #"active")  # Uncomment to restart even if active
-                            #    systemctl restart "${service_name}"
-                            #    exit 0
-                            #;;
+                            "active")  # Uncomment to restart even if active
+                                #systemctl restart "${service_name}"
+                                exit 0
+                            ;;
                             "inactive")  # Start the service if inactive.
                                 systemctl start "${service_name}"
                                 exit 0
@@ -123,10 +123,10 @@ if flock -n 9; then
                     else  # Default logic is duplicated, do what you want.
                         log "BACKUP entered MASTER state" warning
                         case $service_state in
-                            #"active")  # Uncomment to restart even if active
-                            #    systemctl restart "${service_name}"
-                            #    exit 0
-                            #;;
+                            "active")  # Uncomment to restart even if active
+                                #systemctl restart "${service_name}"
+                                exit 0
+                            ;;
                             "inactive")  # Start the service if inactive.
                                 systemctl start "${service_name}"
                                 exit 0
