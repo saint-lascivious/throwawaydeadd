@@ -49,9 +49,21 @@ touch /etc/scripts/.is_master_server
 
 ## Configure
 ```
-MASTER_FLAG_FILE="/etc/scripts/.is_master_server"  # MASTER server trigger file.
-MAX_STATE_AGE="4"  # The time in seconds before saved state considered stale.
-STATE_DIR="/var/log/"  # Directory in which *.lock and *.state files are kept.
+master_is_backup_active="restart"  # MUST be a valid systemctl command, to be
+master_is_backup_inactive="start"  # used in the form of:
+
+backup_is_backup_active="restart"  # :~ $ systemctl $command $service
+backup_is_backup_inactive="start"
+
+master_is_master_active="restart"  # Options include but are not limited to:
+master_is_master_inactive="start"  # start, stop, restart, enable, disable
+
+backup_is_master_active="restart"  # See 'man systemctl' for more options
+backup_is_master_inactive="start"
+
+master_flag_file="/etc/scripts/.is_master_server"  # Master server trigger file
+max_state_age="4"  # Time in seconds before saved state is considered stale
+state_dir="/var/log"  # Directory in which *.lock and *.state files are kept
 ```
 
 # [Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to config folder")
