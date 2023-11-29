@@ -5,27 +5,34 @@
 
 # GNU General Public License Version 3
 
-master_is_backup_active="restart"  # MUST be a valid systemctl command, to be
-master_is_backup_inactive="start"  # used in the form of:
+script_name="$(basename "$0")"  # MUST NOT edit
+service_name="${script_name%.*}"
 
-backup_is_backup_active="restart"  # :~ $ systemctl $command Example-Service
-backup_is_backup_inactive="start"
+script_dir="/etc/scripts"
+if [ -f "${script_dir}/${service_name}.conf" ]; then
+    # shellcheck source=/dev/null
+    . "${script_dir}/${service_name}.conf"
+fi
 
-master_is_master_active="restart"  # Options include but are not limited to:
-master_is_master_inactive="start"  # start, stop, restart, enable, disable
+master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-restart}"
+master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
 
-backup_is_master_active="restart"  # See 'man systemctl' for more options
-backup_is_master_inactive="start"
+backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-restart}"
+backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
 
-master_flag_file="/etc/scripts/.is_master_server"  # Master server trigger file
+master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-restart}"
+master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+
+backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-restart}"
+backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+
+master_flag_file="${script_dir}/.is_master_server"  # Master server trigger file
 max_state_age="4"  # Time in seconds before saved state is considered stale
 state_dir="/var/log"  # Directory in which *.lock and *.state files are kept
 
-is_master="false"  # SHOULD NOT edit, use trigger file described above
+is_master="${IS_MASTER:-false}"  # SHOULD NOT edit
 
-script_name="$(basename "$0")"  # MUST NOT edit, mission critical hereforth
-service_name="${script_name%.*}"
-vrrp_function="${script_name##*.}"
+vrrp_function="${script_name##*.}"  # MUST NOT edit
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
@@ -38,6 +45,9 @@ systemctl_wrapper() {
             else
                 exit 1
             fi
+        ;;
+        ""|"none")
+            exit 0
         ;;
         *)
             exit 1
