@@ -5,7 +5,7 @@ A simple generic yet flexible `keepalived` check and/or notify script.
 
 # [Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to script folder")
 
-## Install
+## Install script
 All commands given are assumed to be run as `root` or equivalent (with `sudo`).
 
 Create the directory `throwawaydeadd` and its symbolic links will live:
@@ -40,31 +40,50 @@ ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check
 ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify
 ```
 
-To indicate that they should function primarily as a MASTER server rather than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
+To indicate that they should function as a MASTER server rather than a BACKUP server, MASTER server(s) MAY create a trigger file.
 
 Example:
 ```
 touch /etc/scripts/.is_master_server
 ```
 
-## Configure
+## Configure script
+External configuration may be supplied via a configuration file in the `/etc/scripts/` directory, with the same name as the service being monitored.
+
+Example `/etc/scripts/Example-Service.conf` shown here with default values:
 ```
-master_is_backup_active="restart"  # MUST be a valid systemctl command, to be
-master_is_backup_inactive="start"  # used in the form of:
+IS_MASTER="false"
 
-backup_is_backup_active="restart"  # :~ $ systemctl $command $service
-backup_is_backup_inactive="start"
+MASTER_IS_BACKUP_ACTIVE="none"
+MASTER_IS_BACKUP_INACTIVE="start"
+MASTER_IS_BACKUP_FAILED="restart"
 
-master_is_master_active="restart"  # Options include but are not limited to:
-master_is_master_inactive="start"  # start, stop, restart, enable, disable
+BACKUP_IS_BACKUP_ACTIVE="none"
+BACKUP_IS_BACKUP_INACTIVE="start"
+BACKUP_IS_BACKUP_FAILED="restart"
 
-backup_is_master_active="restart"  # See 'man systemctl' for more options
-backup_is_master_inactive="start"
+MASTER_IS_MASTER_ACTIVE="none"
+MASTER_IS_MASTER_INACTIVE="start"
+MASTER_IS_MASTER_FAILED="restart"
 
-master_flag_file="/etc/scripts/.is_master_server"  # Master server trigger file
-max_state_age="4"  # Time in seconds before saved state is considered stale
-state_dir="/var/log"  # Directory in which *.lock and *.state files are kept
+BACKUP_IS_MASTER_ACTIVE="none"
+BACKUP_IS_MASTER_INACTIVE="start"
+BACKUP_IS_MASTER_FAILED="restart"
 ```
+
+Possible options for `SERVER_IS_ROLE_STATE` variables may be ONE (1) of the following.
+
+Options performed on services in the form of `systemctl $option Example-Service`:
+`disable`, `enable`, `mask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `restart`, `start`, `stop` or `unmask`.
+
+Options to restart or shutdown the host server in the form of `systemctl $option`:
+`reboot` or `poweroff` respectively.
+
+Null options:
+`none` or blank/unset, do nothing.
+
+*:
+Any other string is rejected and will result in an abort with `exit 1`.
 
 # [Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to config folder")
 MASTER to BACKUP failover, with fast fall and slow rise.

@@ -5,46 +5,53 @@
 
 # GNU General Public License Version 3
 
-script_name="$(basename "$0")"  # MUST NOT edit
+script_name="$(basename "$0")"
 service_name="${script_name%.*}"
+script_dir="$(pwd)"
 
-script_dir="/etc/scripts"
-if [ -f "${script_dir}/${service_name}.conf" ]; then
+config_file="${script_dir}/${service_name}.conf"
+if [ -f "$config_file" ] && [ -r "$config_file" ]; then
     # shellcheck source=/dev/null
-    . "${script_dir}/${service_name}.conf"
+    . "$config_file"
 fi
 
-master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-restart}"
+is_master="${IS_MASTER:-false}"
+
+master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
 
-backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-restart}"
+backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
 backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
 
-master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-restart}"
+master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
 master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
 
-backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-restart}"
+backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
 backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 
-master_flag_file="${script_dir}/.is_master_server"  # Master server trigger file
-max_state_age="4"  # Time in seconds before saved state is considered stale
-state_dir="/var/log"  # Directory in which *.lock and *.state files are kept
-
-is_master="${IS_MASTER:-false}"  # SHOULD NOT edit
-
-vrrp_function="${script_name##*.}"  # MUST NOT edit
+master_flag_file="${script_dir}/.is_master_server"
+max_state_age="4"
+state_dir="/var/log"
+vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
-systemctl_wrapper() {
-    systemctl_action="$1"
-    case $systemctl_action in
-        "disable"|"enable"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"restart"|"start"|"stop")
-            if systemctl "${systemctl_action}" "${service_name}" > /dev/null; then
+action_wrapper() {
+    action_string="$1"
+    case $action_string in
+        "disable"|"enable"|"mask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"restart"|"start"|"stop"|"unmask")
+            if systemctl "${action_string}" "${service_name}" > /dev/null; then
                 exit 0
             else
                 exit 1
             fi
+        ;;
+        "reboot"|"poweroff")
+            systemctl "${action_string}"
         ;;
         ""|"none")
             exit 0
@@ -59,11 +66,13 @@ exec 9>"$lock_file"
 if flock -n 9; then
     if command -v systemctl > /dev/null; then
         service_state="$(systemctl is-active "$service_name")"
+    else
+        service_state="unknown"
     fi
     case $vrrp_function in
         "check"|"CHECK")
             current_time="$(date +%s)"
-            state_last_modified="$(stat -c %Y "${state_file}")"
+            state_last_modified="$(date -r "${state_file}" +%s)"
             state_age="$(("${current_time}" - "${state_last_modified}"))"
             if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
                 saved_state="$(cat "${state_file}")"
@@ -94,19 +103,25 @@ if flock -n 9; then
                     if [ "$is_master" = "true" ]; then
                         case $service_state in
                             "active")
-                                systemctl_wrapper "${master_is_backup_active}"
+                                action_wrapper "${master_is_backup_active}"
                             ;;
                             "inactive")
-                                systemctl_wrapper "${master_is_backup_inactive}"
+                                action_wrapper "${master_is_backup_inactive}"
+                            ;;
+                            "failed")
+                                action_wrapper "${master_is_backup_failed}"
                             ;;
                         esac
                     else
                         case $service_state in
                             "active")
-                                systemctl_wrapper "${backup_is_backup_active}"
+                                action_wrapper "${backup_is_backup_active}"
                             ;;
                             "inactive")
-                                systemctl_wrapper "${backup_is_backup_inactive}"
+                                action_wrapper "${backup_is_backup_inactive}"
+                            ;;
+                            "failed")
+                                action_wrapper "${backup_is_backup_failed}"
                             ;;
                         esac
                     fi
@@ -115,19 +130,25 @@ if flock -n 9; then
                     if [ "$is_master" = "true" ]; then
                         case $service_state in
                             "active")
-                                systemctl_wrapper "${master_is_master_active}"
+                                action_wrapper "${master_is_master_active}"
                             ;;
                             "inactive")
-                                systemctl_wrapper "${master_is_master_inactive}"
+                                action_wrapper "${master_is_master_inactive}"
+                            ;;
+                            "failed")
+                                action_wrapper "${master_is_master_failed}"
                             ;;
                         esac
                     else
                         case $service_state in
                             "active")
-                                systemctl_wrapper "${backup_is_master_active}"
+                                action_wrapper "${backup_is_master_active}"
                             ;;
                             "inactive")
-                                systemctl_wrapper "${backup_is_master_inactive}"
+                                action_wrapper "${backup_is_master_inactive}"
+                            ;;
+                            "failed")
+                                action_wrapper "${backup_is_master_failed}"
                             ;;
                         esac
                     fi
