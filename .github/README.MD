@@ -3,9 +3,38 @@ saint-lascivious (Hayden Pearce) ©2023
 
 A simple generic yet flexible `keepalived` check and/or notify script.
 
+### Features
+⋅⋅* Simple filename based operation
+
+... Monitor (and optionally take action on) a service as easily as creating a symbolic link.
+
+... `throwawaydeadd` operates as either a check or notify script depending on the extension used for the script or symbolic link.
+
+..* Low dependencies
+
+... Simple bash shell construction.
+
+... Requires only `systemctl` and `date` commands.
+
+..* Configurable
+
+... External configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
+
+..* State and lock file enhanced logic
+
+... Reduced potential for state flapping or "ping-pong".
+
+... Prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
+
+..* Action packed
+
+... Don't just get notified if something falls over, do something about it.
+
+... Perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including restarting or shutting down that service or even the host server itself.
+
 # [Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to script folder")
 
-## Install script
+## Install throwawaydeadd
 All commands given are assumed to be run as `root` or equivalent (with `sudo`).
 
 Create the directory `throwawaydeadd` and its symbolic links will live:
@@ -47,10 +76,10 @@ Example:
 touch /etc/scripts/.is_master_server
 ```
 
-## Configure script
+## Configure throwawaydeadd
 External configuration may be supplied via a configuration file in the `/etc/scripts/` directory, with the same name as the service being monitored.
 
-Example `/etc/scripts/Example-Service.conf` shown here with default values:
+Example `/etc/scripts/Example-Service.conf` shown here with default values (master:false, active:none, inactive:start and failed:restart):
 ```
 IS_MASTER="false"
 
@@ -74,13 +103,15 @@ BACKUP_IS_MASTER_FAILED="restart"
 Possible options for `SERVER_IS_ROLE_STATE` variables may be ONE (1) of the following.
 
 Options performed on services in the form of `systemctl $option Example-Service`:
-`disable`, `enable`, `mask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `restart`, `start`, `stop` or `unmask`.
+`disable`, `enable`, `mask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `restart`, `start`, `stop` and `unmask`.
 
-Options to restart or shutdown the host server in the form of `systemctl $option`:
-`reboot` or `poweroff` respectively.
+Options performed in the form of `systemctl $option`:
+`daemon-reexec`, `daemon-reload`, `hibernate`, `reboot`, `poweroff`, `suspend` and `suspend-then-hibernate`.
+
+Note that not all options may be possible on all host servers.
 
 Null options:
-`none` or blank/unset, do nothing.
+`none` or blank/unset, do nothing and exit with a success status.
 
 *:
 Any other string is rejected and will result in an abort with `exit 1`.

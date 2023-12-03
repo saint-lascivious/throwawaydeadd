@@ -50,7 +50,14 @@ action_wrapper() {
                 exit 1
             fi
         ;;
-        "reboot"|"poweroff")
+        "daemon-reexec"|"daemon-reload")
+            if systemctl "${action_string}" "${service_name}" > /dev/null; then
+                exit 0
+            else
+                exit 1
+            fi
+        ;;
+        "hibernate"|"reboot"|"poweroff"|"suspend"|"suspend-then-hibernate")
             systemctl "${action_string}"
         ;;
         ""|"none")
