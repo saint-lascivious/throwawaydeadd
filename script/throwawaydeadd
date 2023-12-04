@@ -33,9 +33,10 @@ backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
 backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
 backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 
+max_state_age="${MAX_STATE_AGE:-4}"
+state_dir="${STATE_DIR:-/var/log}"
+
 master_flag_file="${script_dir}/.is_master_server"
-max_state_age="4"
-state_dir="/var/log"
 vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
@@ -50,15 +51,12 @@ action_wrapper() {
                 exit 1
             fi
         ;;
-        "daemon-reexec"|"daemon-reload")
+        "daemon-reexec"|"daemon-reload"|"hibernate"|"reboot"|"poweroff"|"suspend"|"suspend-then-hibernate")
             if systemctl "${action_string}" "${service_name}" > /dev/null; then
                 exit 0
             else
                 exit 1
             fi
-        ;;
-        "hibernate"|"reboot"|"poweroff"|"suspend"|"suspend-then-hibernate")
-            systemctl "${action_string}"
         ;;
         ""|"none")
             exit 0
