@@ -6,29 +6,29 @@ A simple generic yet flexible `keepalived` check and/or notify script.
 ### Features
 - Simple filename based operation
 
-..Monitor (and optionally take action on) a service as easily as creating a symbolic link.
+Monitor (and optionally take action on) a service as easily as renaming a file or creating a symbolic link.
 
-..`throwawaydeadd` operates as either a check or notify script depending on the extension used for the script or symbolic link.
+`throwawaydeadd` operates as either a check or notify script depending on the extension used for the script or symbolic link.
 
 - Low dependencies
 
-..Simple bash shell construction.
+Simple bash shell construction.
 
-..Requires only `systemctl` and `date` commands.
+Requires only some basic `bash` builtins, `systemctl` and `date` commands.
 
 - Configurable
 
-..External configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
+External configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
 
 - State and lock file enhanced logic
 
-..Reduced potential for state flapping or "ping-pong".
+Reduced potential for state flapping or "ping-pong".
 
-..Prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
+Prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
 
 - Action packed
 
-..Perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
+Perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
 
 # [Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to script folder")
 
@@ -59,6 +59,8 @@ The basename and file extension will dictate the service to monitor and the func
 
 The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`.
 
+It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
+
 All examples going forward will assume that the service to be monitored is named `Example-Service`.
 
 Example:
@@ -82,20 +84,28 @@ Example `/etc/scripts/Example-Service.conf` shown here with default values (mast
 IS_MASTER="false"
 
 MASTER_IS_BACKUP_ACTIVE="none"
-MASTER_IS_BACKUP_INACTIVE="start"
+MASTER_IS_BACKUP_DISABLED="enable"
 MASTER_IS_BACKUP_FAILED="restart"
+MASTER_IS_BACKUP_INACTIVE="start"
+MASTER_IS_BACKUP_MASKED="unmask"
 
 BACKUP_IS_BACKUP_ACTIVE="none"
-BACKUP_IS_BACKUP_INACTIVE="start"
+BACKUP_IS_BACKUP_DISABLED="enable"
 BACKUP_IS_BACKUP_FAILED="restart"
+BACKUP_IS_BACKUP_INACTIVE="start"
+BACKUP_IS_BACKUP_MASKED="unmask"
 
 MASTER_IS_MASTER_ACTIVE="none"
-MASTER_IS_MASTER_INACTIVE="start"
+MASTER_IS_MASTER_DISABLED="enable"
 MASTER_IS_MASTER_FAILED="restart"
+MASTER_IS_MASTER_INACTIVE="start"
+MASTER_IS_MASTER_MASKED="unmask"
 
 BACKUP_IS_MASTER_ACTIVE="none"
-BACKUP_IS_MASTER_INACTIVE="start"
+BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_FAILED="restart"
+BACKUP_IS_MASTER_INACTIVE="start"
+BACKUP_IS_MASTER_MASKED="unmask"
 
 MAX_STATE_AGE="4"
 STATE_DIR="/var/log"
@@ -106,10 +116,10 @@ STATE_DIR="/var/log"
 `SERVER_IS_ROLE_SERVICE-STATE` variables may be ONE (1) of the following.
 
 Options performed on services in the form of `systemctl $option Example-Service`:
-`disable`, `enable`, `mask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `restart`, `start`, `stop` and `unmask`.
+`disable`, `enable`, `mask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `restart`, `start`, `stop`, `try-reload-or-restart`, `try-restart` and `unmask`.
 
 Options performed in the form of `systemctl $option`:
-`daemon-reexec`, `daemon-reload`, `hibernate`, `reboot`, `poweroff`, `suspend` and `suspend-then-hibernate`.
+`daemon-reexec`, `daemon-reload`, `halt`, `hibernate`, `hybrid-sleep`, `reboot`, `poweroff`, `suspend` and `suspend-then-hibernate.
 
 Note that not all options may be possible on all host servers.
 

@@ -18,20 +18,28 @@ fi
 is_master="${IS_MASTER:-false}"
 
 master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
 master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-unmask}"
 
 backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-unmask}"
 
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
 master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
+master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+master_is_master_masked="${MASTER_IS_MASTER_MASKED:-unmask}"
 
 backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
 backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
+backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-unmask}"
 
 max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
@@ -44,14 +52,14 @@ state_file="${state_dir}/${service_name}.state"
 action_wrapper() {
     action_string="$1"
     case $action_string in
-        "disable"|"enable"|"mask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"restart"|"start"|"stop"|"unmask")
+        "disable"|"enable"|"mask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"restart"|"start"|"stop"|"try-reload-or-restart"|"try-restart"|"unmask")
             if systemctl "${action_string}" "${service_name}" > /dev/null; then
                 exit 0
             else
                 exit 1
             fi
         ;;
-        "daemon-reexec"|"daemon-reload"|"hibernate"|"reboot"|"poweroff"|"suspend"|"suspend-then-hibernate")
+        "daemon-reexec"|"daemon-reload"|"halt"|"hibernate"|"hybrid-sleep"|"reboot"|"poweroff"|"suspend"|"suspend-then-hibernate")
             if systemctl "${action_string}" "${service_name}" > /dev/null; then
                 exit 0
             else
@@ -70,7 +78,11 @@ action_wrapper() {
 exec 9>"$lock_file"
 if flock -n 9; then
     if command -v systemctl > /dev/null; then
-        service_state="$(systemctl is-active "$service_name")"
+        if systemctl is-enabled "${service_name}" > /dev/null; then
+            service_state="$(systemctl is-active "${service_name}")"
+        else
+            service_state="$(systemctl is-enabled "${service_name}")"
+        fi
     else
         service_state="unknown"
     fi
@@ -110,11 +122,17 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${master_is_backup_active}"
                             ;;
-                            "inactive")
-                                action_wrapper "${master_is_backup_inactive}"
+                            "disabled")
+                                action_wrapper "${master_is_backup_disabled}"
                             ;;
                             "failed")
                                 action_wrapper "${master_is_backup_failed}"
+                            ;;
+                            "inactive")
+                                action_wrapper "${master_is_backup_inactive}"
+                            ;;
+                            "masked"|"masked-runtime")
+                                action_wrapper "${master_is_backup_masked}"
                             ;;
                         esac
                     else
@@ -122,11 +140,17 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
                             ;;
-                            "inactive")
-                                action_wrapper "${backup_is_backup_inactive}"
+                            "disabled")
+                                action_wrapper "${backup_is_backup_disabled}"
                             ;;
                             "failed")
                                 action_wrapper "${backup_is_backup_failed}"
+                            ;;
+                            "inactive")
+                                action_wrapper "${backup_is_backup_inactive}"
+                            ;;
+                            "masked"|"masked-runtime")
+                                action_wrapper "${backup_is_backup_masked}"
                             ;;
                         esac
                     fi
@@ -137,11 +161,17 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${master_is_master_active}"
                             ;;
-                            "inactive")
-                                action_wrapper "${master_is_master_inactive}"
+                            "disabled")
+                                action_wrapper "${master_is_master_disabled}"
                             ;;
                             "failed")
                                 action_wrapper "${master_is_master_failed}"
+                            ;;
+                            "inactive")
+                                action_wrapper "${master_is_master_inactive}"
+                            ;;
+                            "masked"|"masked-runtime")
+                                action_wrapper "${master_is_master_masked}"
                             ;;
                         esac
                     else
@@ -149,11 +179,17 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${backup_is_master_active}"
                             ;;
-                            "inactive")
-                                action_wrapper "${backup_is_master_inactive}"
+                            "disabled")
+                                action_wrapper "${backup_is_master_disabled}"
                             ;;
                             "failed")
                                 action_wrapper "${backup_is_master_failed}"
+                            ;;
+                            "inactive")
+                                action_wrapper "${backup_is_master_inactive}"
+                            ;;
+                            "masked"|"masked-runtime")
+                                action_wrapper "${backup_is_master_masked}"
                             ;;
                         esac
                     fi
