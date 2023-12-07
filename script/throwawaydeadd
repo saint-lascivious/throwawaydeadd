@@ -18,27 +18,27 @@ fi
 is_master="${IS_MASTER:-false}"
 
 master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
 master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
 
 backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
 backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
-master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
 master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
+master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
 master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
 
 backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
-backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
+backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
 backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
 
 max_state_age="${MAX_STATE_AGE:-4}"
@@ -122,14 +122,14 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${master_is_backup_active}"
                             ;;
-                            "disabled")
-                                action_wrapper "${master_is_backup_disabled}"
+                            "inactive")
+                                action_wrapper "${master_is_backup_inactive}"
                             ;;
                             "failed")
                                 action_wrapper "${master_is_backup_failed}"
                             ;;
-                            "inactive")
-                                action_wrapper "${master_is_backup_inactive}"
+                            "disabled")
+                                action_wrapper "${master_is_backup_disabled}"
                             ;;
                             "masked"|"masked-runtime")
                                 action_wrapper "${master_is_backup_masked}"
@@ -140,14 +140,14 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
                             ;;
-                            "disabled")
-                                action_wrapper "${backup_is_backup_disabled}"
+                            "inactive")
+                                action_wrapper "${backup_is_backup_inactive}"
                             ;;
                             "failed")
                                 action_wrapper "${backup_is_backup_failed}"
                             ;;
-                            "inactive")
-                                action_wrapper "${backup_is_backup_inactive}"
+                            "disabled")
+                                action_wrapper "${backup_is_backup_disabled}"
                             ;;
                             "masked"|"masked-runtime")
                                 action_wrapper "${backup_is_backup_masked}"
@@ -161,14 +161,14 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${master_is_master_active}"
                             ;;
-                            "disabled")
-                                action_wrapper "${master_is_master_disabled}"
+                            "inactive")
+                                action_wrapper "${master_is_master_inactive}"
                             ;;
                             "failed")
                                 action_wrapper "${master_is_master_failed}"
                             ;;
-                            "inactive")
-                                action_wrapper "${master_is_master_inactive}"
+                            "disabled")
+                                action_wrapper "${master_is_master_disabled}"
                             ;;
                             "masked"|"masked-runtime")
                                 action_wrapper "${master_is_master_masked}"
@@ -179,14 +179,14 @@ if flock -n 9; then
                             "active")
                                 action_wrapper "${backup_is_master_active}"
                             ;;
-                            "disabled")
-                                action_wrapper "${backup_is_master_disabled}"
+                            "inactive")
+                                action_wrapper "${backup_is_master_inactive}"
                             ;;
                             "failed")
                                 action_wrapper "${backup_is_master_failed}"
                             ;;
-                            "inactive")
-                                action_wrapper "${backup_is_master_inactive}"
+                            "disabled")
+                                action_wrapper "${backup_is_master_disabled}"
                             ;;
                             "masked"|"masked-runtime")
                                 action_wrapper "${backup_is_master_masked}"

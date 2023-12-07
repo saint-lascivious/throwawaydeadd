@@ -79,32 +79,32 @@ touch /etc/scripts/.is_master_server
 ## Configure throwawaydeadd
 External configuration may be supplied via a configuration file in the `/etc/scripts/` directory, with the same name as the service being monitored.
 
-Example `/etc/scripts/Example-Service.conf` shown here with default values (master:false, active:none, inactive:start and failed:restart):
+Example [/etc/scripts/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
 ```
 IS_MASTER="false"
 
 MASTER_IS_BACKUP_ACTIVE="none"
-MASTER_IS_BACKUP_DISABLED="enable"
-MASTER_IS_BACKUP_FAILED="restart"
 MASTER_IS_BACKUP_INACTIVE="start"
+MASTER_IS_BACKUP_FAILED="restart"
+MASTER_IS_BACKUP_DISABLED="enable"
 MASTER_IS_BACKUP_MASKED="none"
 
 BACKUP_IS_BACKUP_ACTIVE="none"
-BACKUP_IS_BACKUP_DISABLED="enable"
-BACKUP_IS_BACKUP_FAILED="restart"
 BACKUP_IS_BACKUP_INACTIVE="start"
+BACKUP_IS_BACKUP_FAILED="restart"
+BACKUP_IS_BACKUP_DISABLED="enable"
 BACKUP_IS_BACKUP_MASKED="none"
 
 MASTER_IS_MASTER_ACTIVE="none"
-MASTER_IS_MASTER_DISABLED="enable"
-MASTER_IS_MASTER_FAILED="restart"
 MASTER_IS_MASTER_INACTIVE="start"
+MASTER_IS_MASTER_FAILED="restart"
+MASTER_IS_MASTER_DISABLED="enable"
 MASTER_IS_MASTER_MASKED="none"
 
 BACKUP_IS_MASTER_ACTIVE="none"
-BACKUP_IS_MASTER_DISABLED="enable"
-BACKUP_IS_MASTER_FAILED="restart"
 BACKUP_IS_MASTER_INACTIVE="start"
+BACKUP_IS_MASTER_FAILED="restart"
+BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_MASKED="none"
 
 MAX_STATE_AGE="4"
