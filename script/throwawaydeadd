@@ -21,25 +21,25 @@ master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
 master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-unmask}"
+master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
 
 backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
 backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
 backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-unmask}"
+backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
 master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
 master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
 master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
-master_is_master_masked="${MASTER_IS_MASTER_MASKED:-unmask}"
+master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
 
 backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
 backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
 backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
-backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-unmask}"
+backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
 
 max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
@@ -52,22 +52,22 @@ state_file="${state_dir}/${service_name}.state"
 action_wrapper() {
     action_string="$1"
     case $action_string in
-        "disable"|"enable"|"mask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"restart"|"start"|"stop"|"try-reload-or-restart"|"try-restart"|"unmask")
-            if systemctl "${action_string}" "${service_name}" > /dev/null; then
-                exit 0
-            else
-                exit 1
-            fi
-        ;;
-        "daemon-reexec"|"daemon-reload"|"halt"|"hibernate"|"hybrid-sleep"|"reboot"|"poweroff"|"suspend"|"suspend-then-hibernate")
-            if systemctl "${action_string}" "${service_name}" > /dev/null; then
-                exit 0
-            else
-                exit 1
-            fi
-        ;;
         ""|"none")
             exit 0
+        ;;
+        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+            if systemctl "${action_string}" "${service_name}" > /dev/null; then
+                exit 0
+            else
+                exit 1
+            fi
+        ;;
+        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+            if systemctl "${action_string}" > /dev/null; then
+                exit 0
+            else
+                exit 1
+            fi
         ;;
         *)
             exit 1

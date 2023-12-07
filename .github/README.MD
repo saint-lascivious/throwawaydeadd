@@ -87,25 +87,25 @@ MASTER_IS_BACKUP_ACTIVE="none"
 MASTER_IS_BACKUP_DISABLED="enable"
 MASTER_IS_BACKUP_FAILED="restart"
 MASTER_IS_BACKUP_INACTIVE="start"
-MASTER_IS_BACKUP_MASKED="unmask"
+MASTER_IS_BACKUP_MASKED="none"
 
 BACKUP_IS_BACKUP_ACTIVE="none"
 BACKUP_IS_BACKUP_DISABLED="enable"
 BACKUP_IS_BACKUP_FAILED="restart"
 BACKUP_IS_BACKUP_INACTIVE="start"
-BACKUP_IS_BACKUP_MASKED="unmask"
+BACKUP_IS_BACKUP_MASKED="none"
 
 MASTER_IS_MASTER_ACTIVE="none"
 MASTER_IS_MASTER_DISABLED="enable"
 MASTER_IS_MASTER_FAILED="restart"
 MASTER_IS_MASTER_INACTIVE="start"
-MASTER_IS_MASTER_MASKED="unmask"
+MASTER_IS_MASTER_MASKED="none"
 
 BACKUP_IS_MASTER_ACTIVE="none"
 BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_FAILED="restart"
 BACKUP_IS_MASTER_INACTIVE="start"
-BACKUP_IS_MASTER_MASKED="unmask"
+BACKUP_IS_MASTER_MASKED="none"
 
 MAX_STATE_AGE="4"
 STATE_DIR="/var/log"
@@ -116,10 +116,10 @@ STATE_DIR="/var/log"
 `SERVER_IS_ROLE_SERVICE-STATE` variables may be ONE (1) of the following.
 
 Options performed on services in the form of `systemctl $option Example-Service`:
-`disable`, `enable`, `mask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `restart`, `start`, `stop`, `try-reload-or-restart`, `try-restart` and `unmask`.
+`restart`, `start`, `stop`, `enable`, `disable`, `mask`, `unmask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `try-restart` and `try-reload-or-restart`.
 
 Options performed in the form of `systemctl $option`:
-`daemon-reexec`, `daemon-reload`, `halt`, `hibernate`, `hybrid-sleep`, `reboot`, `poweroff`, `suspend` and `suspend-then-hibernate.
+`reboot`, `poweroff`, `halt`, `daemon-reexec`, `daemon-reload`, `suspend`, `hibernate`, `suspend-then-hibernate` and `hybrid-sleep`.
 
 Note that not all options may be possible on all host servers.
 
