@@ -79,20 +79,20 @@ exec 9>"$lock_file"
 if flock -n 9; then
     if command -v systemctl > /dev/null; then
         if systemctl is-enabled "${service_name}" > /dev/null; then
-            service_state="$(systemctl is-active "${service_name}")"
+            service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
         else
-            service_state="$(systemctl is-enabled "${service_name}")"
+            service_state="$(systemctl is-enabled "${service_name}" 2>/dev/null)"
         fi
     else
         service_state="unknown"
     fi
     case $vrrp_function in
         "check"|"CHECK")
-            current_time="$(date +%s)"
-            state_last_modified="$(date -r "${state_file}" +%s)"
+            current_time="$(date +%s 2>/dev/null)"
+            state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
             state_age="$(("${current_time}" - "${state_last_modified}"))"
             if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
-                saved_state="$(cat "${state_file}")"
+                saved_state="$(cat "${state_file}" 2>/dev/null)"
                 if [ "${saved_state}" = "active" ]; then
                     exit 0
                 else
