@@ -30,6 +30,10 @@ Prevents multiple simultaneous executions of the same script or "timeout runaway
 
 Perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
 
+- Get hooked
+
+Optionally execute one or more scripts of your choice from specified directories both prior to and/or after performing a `systemctl` action.
+
 # [Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to script folder")
 
 ## Install throwawaydeadd
@@ -76,6 +80,18 @@ Example:
 touch /etc/scripts/.is_master_server
 ```
 
+If desired, create and populate the directory structure from which pre and post service action hook scripts will be run from.
+
+Those paths are `./hooks/pre_hook` and `.hooks/post_hook` for pre and post action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
+
+Example:
+```
+mkdir -p ./hooks/pre-hook
+mkdir -p ./hooks/post-hook
+```
+
+Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".
+
 ## Configure throwawaydeadd
 External configuration may be supplied via a configuration file in the `/etc/scripts/` directory, with the same name as the service being monitored.
 
@@ -106,6 +122,9 @@ BACKUP_IS_MASTER_INACTIVE="start"
 BACKUP_IS_MASTER_FAILED="restart"
 BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_MASKED="none"
+
+PRE_ACTION_HOOK="pre_hook"
+POST_ACTION_HOOK="post_hook"
 
 MAX_STATE_AGE="4"
 STATE_DIR="/var/log"

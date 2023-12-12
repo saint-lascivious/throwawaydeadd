@@ -10,9 +10,9 @@ service_name="${script_name%.*}"
 script_dir="$(pwd)"
 
 config_file="${script_dir}/${service_name}.conf"
-if [ -f "$config_file" ] && [ -r "$config_file" ]; then
+if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     # shellcheck source=/dev/null
-    . "$config_file"
+    . "${config_file}"
 fi
 
 is_master="${IS_MASTER:-false}"
@@ -44,26 +44,47 @@ backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
 max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
 
+pre_action_hook="${PRE_ACTION_HOOK:-pre_hook}"
+post_action_hook="${POST_ACTION_HOOK:-post_hook}"
+
 master_flag_file="${script_dir}/.is_master_server"
 vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
+hook_wrapper() {
+    hook_type="$1"
+    hook_dir="./hooks/${hook_type}"
+    if [ -d "${hook_dir}" ]; then
+        if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
+            for hook_script in "${hook_dir}"/*; do
+                if [ -x "${hook_script}" ]; then
+                    "${hook_script}"
+                fi
+            done
+        fi
+    fi
+}
+
 action_wrapper() {
     action_string="$1"
-    case $action_string in
+    case "${action_string}" in
         ""|"none")
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+            hook_wrapper "${pre_action_hook}"
             if systemctl "${action_string}" "${service_name}" > /dev/null; then
+                hook_wrapper "${post_action_hook}"
                 exit 0
             else
                 exit 1
             fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+            hook_wrapper "${pre_action_hook}"
             if systemctl "${action_string}" > /dev/null; then
+                hook_wrapper "${post_action_hook}"
                 exit 0
             else
                 exit 1
@@ -86,7 +107,7 @@ if flock -n 9; then
     else
         service_state="unknown"
     fi
-    case $vrrp_function in
+    case "${vrrp_function}" in
         "check"|"CHECK")
             current_time="$(date +%s 2>/dev/null)"
             state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
@@ -112,13 +133,13 @@ if flock -n 9; then
         ;;
         "notify"|"NOTIFY")
             vrrp_state="$3"
-            if [ -f "$master_flag_file" ]; then
+            if [ -f "${master_flag_file}" ]; then
                 is_master="true"
             fi
-            case $vrrp_state in
+            case "${vrrp_state}" in
                 "backup"|"BACKUP")
-                    if [ "$is_master" = "true" ]; then
-                        case $service_state in
+                    if [ "${is_master}" = "true" ]; then
+                        case "${service_state}" in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
                             ;;
@@ -136,7 +157,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-                        case $service_state in
+                        case "${service_state}" in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
                             ;;
@@ -156,8 +177,8 @@ if flock -n 9; then
                     fi
                 ;;
                 "master"|"MASTER")
-                    if [ "$is_master" = "true" ]; then
-                        case $service_state in
+                    if [ "${is_master}" = "true" ]; then
+                        case "${service_state}" in
                             "active")
                                 action_wrapper "${master_is_master_active}"
                             ;;
@@ -175,7 +196,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-                        case $service_state in
+                        case "${service_state}" in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
                             ;;
