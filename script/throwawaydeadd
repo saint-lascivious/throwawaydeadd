@@ -55,7 +55,7 @@ state_file="${state_dir}/${service_name}.state"
 hook_wrapper() {
     hook_type="$1"
     hook_dir="./hooks/${hook_type}"
-    if [ -d "${hook_dir}" ]; then
+    if command -v find > /dev/null && [ -d "${hook_dir}" ]; then
         if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
             for hook_script in "${hook_dir}"/*; do
                 if [ -x "${hook_script}" ]; then
