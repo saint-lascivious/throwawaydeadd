@@ -72,7 +72,9 @@ action_wrapper() {
         ""|"none")
             exit 0
         ;;
-        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
+        "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"| \
+        "try-reload-or-restart")
             hook_wrapper "${pre_action_hook}"
             if systemctl "${action_string}" "${service_name}" > /dev/null; then
                 hook_wrapper "${post_action_hook}"
@@ -81,7 +83,8 @@ action_wrapper() {
                 exit 1
             fi
         ;;
-        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"| \
+        "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             hook_wrapper "${pre_action_hook}"
             if systemctl "${action_string}" > /dev/null; then
                 hook_wrapper "${post_action_hook}"
@@ -100,9 +103,11 @@ exec 9>"$lock_file"
 if flock -n 9; then
     if command -v systemctl > /dev/null; then
         if systemctl is-enabled "${service_name}" > /dev/null; then
-            service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
+            service_state="$(systemctl is-active "${service_name}" \
+            2>/dev/null)"
         else
-            service_state="$(systemctl is-enabled "${service_name}" 2>/dev/null)"
+            service_state="$(systemctl is-enabled "${service_name}" \
+            2>/dev/null)"
         fi
     else
         service_state="unknown"
@@ -112,7 +117,8 @@ if flock -n 9; then
             current_time="$(date +%s 2>/dev/null)"
             state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
             state_age="$(("${current_time}" - "${state_last_modified}"))"
-            if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
+            if [ -f "${state_file}" ] && \
+            [ "${state_age}" -le "${max_state_age}" ]; then
                 saved_state="$(cat "${state_file}" 2>/dev/null)"
                 if [ "${saved_state}" = "active" ]; then
                     exit 0
