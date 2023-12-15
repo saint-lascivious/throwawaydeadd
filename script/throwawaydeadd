@@ -1,57 +1,41 @@
 #!/usr/bin/env bash
-
-# throwawaydeadd
-# saint-lascivious (Hayden Pearce) ©2023
-
-# GNU General Public License Version 3
-
 script_name="$(basename "$0")"
 service_name="${script_name%.*}"
 script_dir="$(pwd)"
-
 config_file="${script_dir}/${service_name}.conf"
 if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     # shellcheck source=/dev/null
     . "${config_file}"
 fi
-
 is_master="${IS_MASTER:-false}"
-# mib == master is backup
 mib_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 mib_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
 mib_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
 mib_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
 mib_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-# bib == backup is backup
 bib_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
 bib_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
 bib_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
 bib_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 bib_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
-# mim == master is master
 mim_active="${MASTER_IS_MASTER_ACTIVE:-none}"
 mim_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
 mim_failed="${MASTER_IS_MASTER_FAILED:-restart}"
 mim_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
 mim_masked="${MASTER_IS_MASTER_MASKED:-none}"
-# bim == backup is master
 bim_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
 bim_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
 bim_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 bim_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
 bim_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-
 max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
-
 pre_action_hook="${PRE_ACTION_HOOK:-pre_hook}"
 post_action_hook="${POST_ACTION_HOOK:-post_hook}"
-
 master_flag_file="${script_dir}/.is_master_server"
 vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
-
 hook_wrapper() {
     hook_type="$1"
     hook_dir="./hooks/${hook_type}"
@@ -65,7 +49,6 @@ hook_wrapper() {
         fi
     fi
 }
-
 action_wrapper() {
     action_string="$1"
     case "${action_string}" in
@@ -94,7 +77,6 @@ action_wrapper() {
         *) exit 1 ;;
     esac
 }
-
 exec 9>"$lock_file"
 if flock -n 9; then
     if command -v systemctl > /dev/null; then
