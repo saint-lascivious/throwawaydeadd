@@ -16,30 +16,30 @@ if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
 fi
 
 is_master="${IS_MASTER:-false}"
-
-master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
-master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-
-backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
-backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
-
-master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
-master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
-master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
-master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
-
-backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
-backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
-backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
-backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
+# mib == master is backup
+mib_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
+mib_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+mib_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+mib_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
+mib_masked="${MASTER_IS_BACKUP_MASKED:-none}"
+# bib == backup is backup
+bib_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
+bib_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+bib_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+bib_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
+bib_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
+# mim == master is master
+mim_active="${MASTER_IS_MASTER_ACTIVE:-none}"
+mim_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+mim_failed="${MASTER_IS_MASTER_FAILED:-restart}"
+mim_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
+mim_masked="${MASTER_IS_MASTER_MASKED:-none}"
+# bim == backup is master
+bim_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
+bim_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+bim_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
+bim_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
+bim_masked="${BACKUP_IS_MASTER_MASKED:-none}"
 
 max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
@@ -69,9 +69,7 @@ hook_wrapper() {
 action_wrapper() {
     action_string="$1"
     case "${action_string}" in
-        ""|"none")
-            exit 0
-        ;;
+        ""|"none") exit 0 ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
         "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"| \
         "try-reload-or-restart")
@@ -93,9 +91,7 @@ action_wrapper() {
                 exit 1
             fi
         ;;
-        *)
-            exit 1
-        ;;
+        *) exit 1 ;;
     esac
 }
 
@@ -146,78 +142,42 @@ if flock -n 9; then
                 "backup"|"BACKUP")
                     if [ "${is_master}" = "true" ]; then
                         case "${service_state}" in
-                            "active")
-                                action_wrapper "${master_is_backup_active}"
-                            ;;
-                            "inactive")
-                                action_wrapper "${master_is_backup_inactive}"
-                            ;;
-                            "failed")
-                                action_wrapper "${master_is_backup_failed}"
-                            ;;
-                            "disabled")
-                                action_wrapper "${master_is_backup_disabled}"
-                            ;;
-                            "masked"|"masked-runtime")
-                                action_wrapper "${master_is_backup_masked}"
-                            ;;
+                            "active") action_wrapper "${mib_active}" ;;
+                            "inactive") action_wrapper "${mib_inactive}" ;;
+                            "failed") action_wrapper "${mib_failed}" ;;
+                            "disabled") action_wrapper "${mib_disabled}" ;;
+                            "masked"|"masked-runtime") action_wrapper \
+                            "${mib_masked}";;
                         esac
                     else
                         case "${service_state}" in
-                            "active")
-                                action_wrapper "${backup_is_backup_active}"
-                            ;;
-                            "inactive")
-                                action_wrapper "${backup_is_backup_inactive}"
-                            ;;
-                            "failed")
-                                action_wrapper "${backup_is_backup_failed}"
-                            ;;
-                            "disabled")
-                                action_wrapper "${backup_is_backup_disabled}"
-                            ;;
-                            "masked"|"masked-runtime")
-                                action_wrapper "${backup_is_backup_masked}"
-                            ;;
+                            "active") action_wrapper "${bib_active}" ;;
+                            "inactive") action_wrapper "${bib_inactive}" ;;
+                            "failed") action_wrapper "${bib_failed}" ;;
+                            "disabled") action_wrapper "${bib_disabled}" ;;
+                            "masked"|"masked-runtime") action_wrapper \
+                            "${bib_masked}";;
                         esac
                     fi
                 ;;
                 "master"|"MASTER")
                     if [ "${is_master}" = "true" ]; then
                         case "${service_state}" in
-                            "active")
-                                action_wrapper "${master_is_master_active}"
-                            ;;
-                            "inactive")
-                                action_wrapper "${master_is_master_inactive}"
-                            ;;
-                            "failed")
-                                action_wrapper "${master_is_master_failed}"
-                            ;;
-                            "disabled")
-                                action_wrapper "${master_is_master_disabled}"
-                            ;;
-                            "masked"|"masked-runtime")
-                                action_wrapper "${master_is_master_masked}"
-                            ;;
+                            "active") action_wrapper "${mim_active}" ;;
+                            "inactive") action_wrapper "${mim_inactive}" ;;
+                            "failed") action_wrapper "${mim_failed}" ;;
+                            "disabled") action_wrapper "${mim_disabled}" ;;
+                            "masked"|"masked-runtime") action_wrapper \
+                            "${mim_masked}";;
                         esac
                     else
                         case "${service_state}" in
-                            "active")
-                                action_wrapper "${backup_is_master_active}"
-                            ;;
-                            "inactive")
-                                action_wrapper "${backup_is_master_inactive}"
-                            ;;
-                            "failed")
-                                action_wrapper "${backup_is_master_failed}"
-                            ;;
-                            "disabled")
-                                action_wrapper "${backup_is_master_disabled}"
-                            ;;
-                            "masked"|"masked-runtime")
-                                action_wrapper "${backup_is_master_masked}"
-                            ;;
+                            "active") action_wrapper "${bim_active}" ;;
+                            "inactive") action_wrapper "${bim_inactive}" ;;
+                            "failed") action_wrapper "${bim_failed}" ;;
+                            "disabled") action_wrapper "${bim_disabled}" ;;
+                            "masked"|"masked-runtime") action_wrapper \
+                            "${bim_masked}";;
                         esac
                     fi
                 ;;
