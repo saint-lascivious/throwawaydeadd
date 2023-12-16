@@ -82,12 +82,12 @@ touch /etc/scripts/.is_master_server
 
 If desired, create and populate the directory structure from which pre and post service action hook scripts will be run from.
 
-Those paths are `./hooks/pre_hook` and `.hooks/post_hook` for pre and post action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
+Those paths are `./hooks/pre_action` and `.hooks/post_action` for pre and post action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
 
 Example:
 ```
-mkdir -p ./hooks/pre-hook
-mkdir -p ./hooks/post-hook
+mkdir -p ./hooks/pre_action
+mkdir -p ./hooks/post_action
 ```
 
 Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".

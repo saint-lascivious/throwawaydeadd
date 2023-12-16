@@ -1,156 +1,72 @@
 #!/usr/bin/env bash
-script_name="$(basename "$0")"
-service_name="${script_name%.*}"
-script_dir="$(pwd)"
-config_file="${script_dir}/${service_name}.conf"
-if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
+script_name="$(basename "$0")" service_name="${script_name%.*}" \
+script_dir="$(pwd)" conf_file="${script_dir}/${service_name}.conf"; \
 # shellcheck source=/dev/null
-. "${config_file}"
-fi
-is_master="${IS_MASTER:-false}"
-mib_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-mib_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-mib_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
-mib_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-mib_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-bib_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-bib_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-bib_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
-bib_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-bib_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
-mim_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-mim_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
-mim_failed="${MASTER_IS_MASTER_FAILED:-restart}"
-mim_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
-mim_masked="${MASTER_IS_MASTER_MASKED:-none}"
-bim_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-bim_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
-bim_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
-bim_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
-bim_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-max_state_age="${MAX_STATE_AGE:-4}"
-state_dir="${STATE_DIR:-/var/log}"
-pre_action_hook="${PRE_ACTION_HOOK:-pre_hook}"
-post_action_hook="${POST_ACTION_HOOK:-post_hook}"
-master_flag_file="${script_dir}/.is_master_server"
-vrrp_function="${script_name##*.}"
-lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
-state_file="${state_dir}/${service_name}.state"
-hook_wrapper() {
-hook_type="$1"
-hook_dir="./hooks/${hook_type}"
-if command -v find > /dev/null && [ -d "${hook_dir}" ]; then
-if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
-for hook_script in "${hook_dir}"/*; do
-if [ -x "${hook_script}" ]; then
-"${hook_script}"
-fi
-done
-fi
-fi
-}
-action_wrapper() {
-action_string="$1"
-case "${action_string}" in
-""|"none") exit 0 ;;
-"restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
+if [ -f "${conf_file}" ] && [ -r "${conf_file}" ]; then . "${conf_file}"; fi; \
+IM="${IS_MASTER:-false}" MIBA="${MASTER_IS_BACKUP_ACTIVE:-none}" \
+MIBI="${MASTER_IS_BACKUP_INACTIVE:-start}" \
+MIBF="${MASTER_IS_BACKUP_FAILED:-restart}" \
+MIBD="${MASTER_IS_BACKUP_DISABLED:-enable}" \
+MIBM="${MASTER_IS_BACKUP_MASKED:-none}" \
+BIBA="${BACKUP_IS_BACKUP_ACTIVE:-none}" \
+BIBI="${BACKUP_IS_BACKUP_INACTIVE:-start}" \
+BIBF="${BACKUP_IS_BACKUP_FAILED:-restart}" \
+BIBD="${BACKUP_IS_BACKUP_DISABLED:-enable}" \
+BIBM="${BACKUP_IS_BACKUP_MASKED:-none}" \
+MIMA="${MASTER_IS_MASTER_ACTIVE:-none}" \
+MIMI="${MASTER_IS_MASTER_INACTIVE:-start}" \
+MIMF="${MASTER_IS_MASTER_FAILED:-restart}" \
+MIMD="${MASTER_IS_MASTER_DISABLED:-enable}" \
+MIMM="${MASTER_IS_MASTER_MASKED:-none}" \
+BIMA="${BACKUP_IS_MASTER_ACTIVE:-none}" \
+BIMI="${BACKUP_IS_MASTER_INACTIVE:-start}" \
+BIMF="${BACKUP_IS_MASTER_FAILED:-restart}" \
+BIMD="${BACKUP_IS_MASTER_DISABLED:-enable}" \
+BIMM="${BACKUP_IS_MASTER_MASKED:-none}" MSA="${MAX_STATE_AGE:-4}" \
+SD="${STATE_DIR:-/var/log}" PRE_AH="${PRE_ACTION_HOOK:-pre_action}" \
+POST_AH="${POST_ACTION_HOOK:-post_action}" \
+master_flag_file="${script_dir}/.IM_server" vrrp_function="${script_name##*.}" \
+lock_file="${SD}/${service_name}-${vrrp_function}.lock" \
+state_file="${SD}/${service_name}.state"; \
+hook_wrapper() { hook_type="$1" hook_dir="./hooks/${hook_type}"; if command -v \
+find > /dev/null && [ -d "${hook_dir}" ]; then if [ -n "$(find "${hook_dir}" \
+-maxdepth 1 -type f -executable)" ]; then for hook_script in "${hook_dir}"/*; \
+do if [ -x "${hook_script}" ]; then "${hook_script}"; fi done fi fi }; \
+action_wrapper() { action_string="$1"; case "${action_string}" in ""|"none") \
+exit 0;; "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
 "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"| \
-"try-reload-or-restart")
-hook_wrapper "${pre_action_hook}"
-if systemctl "${action_string}" "${service_name}" > /dev/null; then
-hook_wrapper "${post_action_hook}"
-exit 0
-else
-exit 1
-fi ;;
-"reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"| \
-"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-hook_wrapper "${pre_action_hook}"
-if systemctl "${action_string}" > /dev/null; then
-hook_wrapper "${post_action_hook}"
-exit 0
-else
-exit 1
-fi ;;
-*) exit 1 ;;
-esac
-}
-exec 9>"$lock_file"
-if flock -n 9; then
-if command -v systemctl > /dev/null; then
-if systemctl is-enabled "${service_name}" > /dev/null; then
-service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
-else
-service_state="$(systemctl is-enabled "${service_name}" 2>/dev/null)"
-fi
-else
-service_state="unknown"
-fi
-case "${vrrp_function}" in
-"check"|"CHECK")
-if command -v date > /dev/null; then
-current_time="$(date +%s 2>/dev/null)"
-state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
-state_age="$(("${current_time}" - "${state_last_modified}"))"
-fi
-if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
-saved_state="$(cat "${state_file}" 2>/dev/null)"
-if [ "${saved_state}" = "active" ]; then
-exit 0
-else
-exit 1
-fi
-else
-exec 8>"$state_file"
-if flock -n 8; then
-echo "${service_state}" > "${state_file}"
-if [ "${service_state}" = "active" ]; then
-exit 0
-else
-exit 1
-fi
-fi
-fi ;;
-"notify"|"NOTIFY")
-vrrp_state="$3"
-if [ -f "${master_flag_file}" ]; then
-is_master="true"
-fi
-case "${vrrp_state}" in
-"backup"|"BACKUP") if [ "${is_master}" = "true" ]; then
-case "${service_state}" in
-"active") action_wrapper "${mib_active}" ;;
-"inactive") action_wrapper "${mib_inactive}" ;;
-"failed") action_wrapper "${mib_failed}" ;;
-"disabled") action_wrapper "${mib_disabled}" ;;
-"masked"|"masked-runtime") action_wrapper "${mib_masked}";;
-esac
-else
-case "${service_state}" in
-"active") action_wrapper "${bib_active}" ;;
-"inactive") action_wrapper "${bib_inactive}" ;;
-"failed") action_wrapper "${bib_failed}" ;;
-"disabled") action_wrapper "${bib_disabled}" ;;
-"masked"|"masked-runtime") action_wrapper "${bib_masked}";;
-esac
-fi ;;
-"master"|"MASTER") if [ "${is_master}" = "true" ]; then
-case "${service_state}" in
-"active") action_wrapper "${mim_active}" ;;
-"inactive") action_wrapper "${mim_inactive}" ;;
-"failed") action_wrapper "${mim_failed}" ;;
-"disabled") action_wrapper "${mim_disabled}" ;;
-"masked"|"masked-runtime") action_wrapper "${mim_masked}";;
-esac
-else
-case "${service_state}" in
-"active") action_wrapper "${bim_active}" ;;
-"inactive") action_wrapper "${bim_inactive}" ;;
-"failed") action_wrapper "${bim_failed}" ;;
-"disabled") action_wrapper "${bim_disabled}" ;;
-"masked"|"masked-runtime") action_wrapper "${bim_masked}";;
-esac
-fi ;;
-esac ;;
-esac
-fi
+"try-reload-or-restart") hook_wrapper "${PRE_AH}"; if systemctl \
+"${action_string}" "${service_name}" > /dev/null; then hook_wrapper \
+"${POST_AH}" exit 0 else exit 1; fi;; "reboot"|"poweroff"|"halt"| \
+"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|\
+"hybrid-sleep") hook_wrapper "${PRE_AH}"; if systemctl "${action_string}" > \
+/dev/null; then hook_wrapper "${POST_AH}" exit 0 else exit 1; fi;; *) exit 1 \
+;; esac }; exec 9>"$lock_file"; if flock -n 9; then if command -v systemctl > \
+/dev/null; then if systemctl is-enabled "${service_name}" > /dev/null; then \
+service_state="$(systemctl is-active "${service_name}" 2>/dev/null)" else \
+service_state="$(systemctl is-enabled "${service_name}" 2>/dev/null)"; fi else \
+service_state="unknown"; fi; case "${vrrp_function}" in "check"|"CHECK") if \
+command -v date > /dev/null; then current_time="$(date +%s 2>/dev/null)" \
+state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)" \
+state_age="$(("${current_time}" - "${state_last_modified}"))"; fi; if [ -f \
+"${state_file}" ] && [ "${state_age}" -le "${MSA}" ]; then saved_state="$(cat \
+"${state_file}" 2>/dev/null)"; if [ "${saved_state}" = "active" ]; then \
+exit 0; else exit 1; fi else exec 8>"$state_file"; if flock -n 8; then echo \
+"${service_state}" > "${state_file}"; if [ "${service_state}" = "active" ]; \
+then exit 0; else exit 1; fi fi fi;; "notify"|"NOTIFY") vrrp_state="$3"; if \
+[ -f "${master_flag_file}" ]; then IM="true"; fi; case "${vrrp_state}" in \
+"backup"|"BACKUP") if [ "${IM}" = "true" ]; then case "${service_state}" in \
+"active") action_wrapper "${MIBA}";; "inactive") action_wrapper "${MIBI}";; \
+"failed") action_wrapper "${MIBF}";; "disabled") action_wrapper "${MIBD}";; \
+"masked"|"masked-runtime") action_wrapper "${MIBM}";; esac else case \
+"${service_state}" in "active") action_wrapper "${BIBA}";; "inactive") \
+action_wrapper "${BIBI}";; "failed") action_wrapper "${BIBF}";; "disabled") \
+action_wrapper "${BIBD}";; "masked"|"masked-runtime") action_wrapper \
+"${BIBM}";; esac fi;; "master"|"MASTER") if [ "${IM}" = "true" ]; then case \
+"${service_state}" in "active") action_wrapper "${MIMA}";; "inactive") \
+action_wrapper "${MIMI}";; "failed") action_wrapper "${MIMF}";; "disabled") \
+action_wrapper "${MIMD}";; "masked"|"masked-runtime") action_wrapper \
+"${MIMM}";; esac else case "${service_state}" in "active") action_wrapper \
+"${BIMA}";; "inactive") action_wrapper "${BIMI}";; "failed") action_wrapper \
+"${BIMF}";; "disabled") action_wrapper "${BIMD}";; "masked"|"masked-runtime") \
+action_wrapper "${BIMM}";; esac fi;; esac;; esac fi
