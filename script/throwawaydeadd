@@ -46,17 +46,40 @@ state_dir="${STATE_DIR:-/var/log}"
 
 pre_action_hook="${PRE_ACTION_HOOK:-pre_action}"
 post_action_hook="${POST_ACTION_HOOK:-post_action}"
+failed_action_hook="${FAILED_ACTION_HOOK:-failed_action}"
 
 master_flag_file="${script_dir}/.is_master_server"
 vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
+get_state() {
+    current_time="$(date +%s 2>/dev/null)"
+    state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
+    state_age="$(("${current_time}" - "${state_last_modified}"))"
+    if [ -f "${state_file}" ] && \
+    [ "${state_age}" -le "${max_state_age}" ]; then
+        service_state="$(cat "${state_file}" 2>/dev/null)"
+    else
+        exec 8>"$state_file"
+        if flock -n 8; then
+            if command -v systemctl > /dev/null; then
+                service_state="$(systemctl is-active "${service_name}" \
+                2>/dev/null)"
+            else
+                service_state="unknown"
+            fi
+            echo "${service_state}" > "${state_file}"
+        fi
+    fi
+}
+
 hook_wrapper() {
     hook_type="$1"
     hook_dir="./hooks/${hook_type}"
     if command -v find > /dev/null && [ -d "${hook_dir}" ]; then
-        if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
+        if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; \
+        then
             for hook_script in "${hook_dir}"/*; do
                 if [ -x "${hook_script}" ]; then
                     "${hook_script}"
@@ -75,60 +98,42 @@ action_wrapper() {
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
         "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"| \
         "try-reload-or-restart")
-            hook_wrapper "${pre_action_hook}"
-            if systemctl "${action_string}" "${service_name}" > /dev/null; then
-                hook_wrapper "${post_action_hook}"
-                exit 0
-            else
-                exit 1
+            if command -v systemctl > /dev/null; then
+                hook_wrapper "${pre_action_hook}"
+                if ! systemctl "${action_string}" "${service_name}" > \
+                /dev/null; then
+                    hook_wrapper "${failed_action_hook}"
+                    exit 1
+                fi
             fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"| \
         "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-            hook_wrapper "${pre_action_hook}"
-            if systemctl "${action_string}" > /dev/null; then
-                hook_wrapper "${post_action_hook}"
-                exit 0
-            else
-                exit 1
+            if command -v systemctl > /dev/null; then
+                hook_wrapper "${pre_action_hook}"
+                if ! systemctl "${action_string}" > /dev/null; then
+                    hook_wrapper "${failed_action_hook}"
+                    exit 1
+                fi
             fi
         ;;
         *)
             exit 1
         ;;
     esac
+    hook_wrapper "${post_action_hook}"
+    exit 0
 }
 
 exec 9>"$lock_file"
 if flock -n 9; then
-    if command -v systemctl > /dev/null; then
-        service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
-    else
-        service_state="unknown"
-    fi
+    get_state
     case "${vrrp_function}" in
         "check"|"CHECK")
-            current_time="$(date +%s 2>/dev/null)"
-            state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
-            state_age="$(("${current_time}" - "${state_last_modified}"))"
-            if [ -f "${state_file}" ] && \
-            [ "${state_age}" -le "${max_state_age}" ]; then
-                saved_state="$(cat "${state_file}" 2>/dev/null)"
-                if [ "${saved_state}" = "active" ]; then
-                    exit 0
-                else
-                    exit 1
-                fi
+            if [ "${service_state}" = "active" ]; then
+                exit 0
             else
-                exec 8>"$state_file"
-                if flock -n 8; then
-                    echo "${service_state}" > "${state_file}"
-                    if [ "${service_state}" = "active" ]; then
-                        exit 0
-                    else
-                        exit 1
-                    fi
-                fi
+                exit 1
             fi
         ;;
         "notify"|"NOTIFY")
