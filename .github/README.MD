@@ -84,6 +84,8 @@ If desired, create and populate the directory structure from which pre and post 
 
 Those paths are `./hooks/pre_action` and `.hooks/post_action` for pre and post action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
 
+Please note that post_action hooks will only be triggered if that action succeeds.
+
 Example:
 ```
 mkdir -p ./hooks/pre_action

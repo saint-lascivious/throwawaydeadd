@@ -102,13 +102,7 @@ action_wrapper() {
 exec 9>"$lock_file"
 if flock -n 9; then
     if command -v systemctl > /dev/null; then
-        if systemctl is-enabled "${service_name}" > /dev/null; then
-            service_state="$(systemctl is-active "${service_name}" \
-            2>/dev/null)"
-        else
-            service_state="$(systemctl is-enabled "${service_name}" \
-            2>/dev/null)"
-        fi
+        service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
     else
         service_state="unknown"
     fi
