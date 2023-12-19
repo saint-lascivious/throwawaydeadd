@@ -22,9 +22,9 @@ External configuration can be provided from a file with the same name as the che
 
 - State and lock file enhanced logic
 
-Reduced potential for state flapping or "ping-pong".
+State file prevents state "flapping" or "ping-pong".
 
-Prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
+Lock file prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
 
 - Action packed
 
@@ -32,7 +32,7 @@ Perform one of many `systemctl` actions depending on the current state of the se
 
 - Get hooked
 
-Optionally execute one or more scripts of your choice from specified directories both prior to and/or after performing a `systemctl` action.
+Execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action.
 
 # [Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to script folder")
 
@@ -126,8 +126,9 @@ BACKUP_IS_MASTER_FAILED="restart"
 BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_MASKED="none"
 
-PRE_ACTION_HOOK="pre_hook"
-POST_ACTION_HOOK="post_hook"
+PRE_ACTION_HOOK="pre_action"
+POST_ACTION_HOOK="post_action"
+FAILED_ACTION_HOOK="failed_action"
 
 MAX_STATE_AGE="4"
 STATE_DIR="/var/log"
@@ -138,14 +139,17 @@ STATE_DIR="/var/log"
 `SERVER_IS_ROLE_SERVICE-STATE` variables may be ONE (1) of the following.
 
 Options performed on services in the form of `systemctl $option Example-Service`:
+
 `restart`, `start`, `stop`, `enable`, `disable`, `mask`, `unmask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `try-restart` and `try-reload-or-restart`.
 
 Options performed in the form of `systemctl $option`:
+
 `reboot`, `poweroff`, `halt`, `daemon-reexec`, `daemon-reload`, `suspend`, `hibernate`, `suspend-then-hibernate` and `hybrid-sleep`.
 
 Note that not all options may be possible on all host servers.
 
 Null options:
+
 `none` or blank/unset, do nothing and exit with a success status.
 
 Any other string is rejected and will result in an abort with `exit 1`.

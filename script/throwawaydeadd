@@ -137,6 +137,9 @@ if flock -n 9; then
             fi
         ;;
         "notify"|"NOTIFY")
+            if [ "${service_state}" = "unknown" ]; then
+                exit 1
+            fi
             vrrp_state="$3"
             if [ -f "${master_flag_file}" ]; then
                 is_master="true"
