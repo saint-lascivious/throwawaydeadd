@@ -54,6 +54,10 @@ lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
 get_state() {
+    if ! command -v systemctl > /dev/null; then
+        echo "Error: systemctl command not found"
+        exit 1
+    fi
     current_time="$(date +%s 2>/dev/null)"
     state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
     state_age="$(("${current_time}" - "${state_last_modified}"))"
@@ -63,12 +67,8 @@ get_state() {
     else
         exec 8>"$state_file"
         if flock -n 8; then
-            if command -v systemctl > /dev/null; then
-                service_state="$(systemctl is-active "${service_name}" \
-                2>/dev/null)"
-            else
-                service_state="unknown"
-            fi
+            service_state="$(systemctl is-active "${service_name}" \
+            2>/dev/null)"
             echo "${service_state}" > "${state_file}"
         fi
     fi
@@ -77,7 +77,7 @@ get_state() {
 hook_wrapper() {
     hook_type="$1"
     hook_dir="./hooks/${hook_type}"
-    if command -v find > /dev/null && [ -d "${hook_dir}" ]; then
+    if [ -d "${hook_dir}" ]; then
         if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; \
         then
             for hook_script in "${hook_dir}"/*; do
@@ -98,23 +98,19 @@ action_wrapper() {
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
         "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"| \
         "try-reload-or-restart")
-            if command -v systemctl > /dev/null; then
-                hook_wrapper "${pre_action_hook}"
-                if ! systemctl "${action_string}" "${service_name}" > \
-                /dev/null; then
-                    hook_wrapper "${failed_action_hook}"
-                    exit 1
-                fi
+            hook_wrapper "${pre_action_hook}"
+            if ! systemctl "${action_string}" "${service_name}" > \
+            /dev/null; then
+                hook_wrapper "${failed_action_hook}"
+                exit 1
             fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"| \
         "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-            if command -v systemctl > /dev/null; then
-                hook_wrapper "${pre_action_hook}"
-                if ! systemctl "${action_string}" > /dev/null; then
-                    hook_wrapper "${failed_action_hook}"
-                    exit 1
-                fi
+            hook_wrapper "${pre_action_hook}"
+            if ! systemctl "${action_string}" > /dev/null; then
+                hook_wrapper "${failed_action_hook}"
+                exit 1
             fi
         ;;
         *)
@@ -137,9 +133,6 @@ if flock -n 9; then
             fi
         ;;
         "notify"|"NOTIFY")
-            if [ "${service_state}" = "unknown" ]; then
-                exit 1
-            fi
             vrrp_state="$3"
             if [ -f "${master_flag_file}" ]; then
                 is_master="true"
