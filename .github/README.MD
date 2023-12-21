@@ -92,9 +92,7 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 
 - **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link, the default value is `false`.
 
-- **LOG_DIR:** The directory in which the `throwawaydeadd` log is kept, the default value is `/var/log`.
-
-- **LOG_FILE:** The file name the `throwawaydeadd` log, the default value is `throwawaydeadd.log`.
+- **LOG_DIR:** The directory in which the `throwawaydeadd` logs are kept, the default value is `/var/log/throwawaydeadd`.
 
 - **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
 

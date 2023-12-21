@@ -14,8 +14,7 @@ if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     . "${config_file}"
 fi
 is_master="${IS_MASTER:-false}"
-log_dir="${LOG_DIR:-/var/log}"
-log_file="${LOG_FILE:-throwawaydeadd.log}"
+log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
 log_verbosity="${LOG_VERBOSITY:-0}"
 master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
@@ -51,6 +50,9 @@ log_wrapper() {
     local message="$1"
     local verbosity="$2"
     if [ "${log_verbosity}" -ge "${verbosity}" ]; then
+        if [ ! -d "${log_dir}" ]; then
+            mkdir -p "${log_dir}"
+        fi
         case "${verbosity}" in
             "1")
                 log_type="ERROR: "
@@ -66,7 +68,7 @@ log_wrapper() {
             ;;
         esac
         echo "[$(date +"%d-%m-%Y %H:%M:%S.%3N")] ${log_type}${message}" >> \
-        "${log_dir}/${log_file}"
+        "${log_dir}/${service_name}.log"
     fi
 }
 
