@@ -43,7 +43,7 @@ All examples going forward will assume that the service to be monitored is named
    `chmod +x throwawaydeadd`
 
 5. Create link(s):
-   ```
+
    `ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check`
 
    `ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify`
@@ -53,6 +53,7 @@ All examples going forward will assume that the service to be monitored is named
 To indicate that they should function as a MASTER server rather than a BACKUP server at a system/host rather than script/symbolic link level, MASTER server(s) MAY create a dotfile trigger in the same directory as the script or symbolic link.
 
 Example:
+
    `touch /etc/scripts/.is_master_server`
 
 If desired, create and populate the directory structure from which pre, post and failed service action hook scripts will be run from.
@@ -78,12 +79,15 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 - **LOG_VERBOSITY:** Any numeric value greater than 0 (zero) enables (at this point very basic) logging.
 
 - **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following options to be performed on services in the form of `systemctl $option Example-Service`:
+
    `restart`, `start`, `stop`, `enable`, `disable`, `mask`, `unmask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `try-restart` and `try-reload-or-restart`.
 
    ONE (1) of the following options performed in the form of `systemctl $option`:
+
    `reboot`, `poweroff`, `halt`, `daemon-reexec`, `daemon-reload`, `suspend`, `hibernate`, `suspend-then-hibernate` and `hybrid-sleep`.
 
    Or ONE (1) of the following null options:
+
    `none` or blank/unset.
 
    Note that not all options may be possible on all host servers.
