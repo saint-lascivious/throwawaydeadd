@@ -27,39 +27,33 @@ The basename and file extension will dictate the service to monitor and the func
 All examples going forward will assume that the service to be monitored is named `Example-Service`.
 
 1. Create the directory `throwawaydeadd` and its symbolic links will live:
-   ```
-   mkdir /etc/scripts
-```
+
+   `mkdir /etc/scripts`
 
 2. Navigate to that directory:
-   ```
-   cd /etc/scripts
-```
+
+   `cd /etc/scripts`
 
 3. Download the `throwawaydeadd` script using `wget`:
-   ```
-   wget https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd
-```
+
+   `wget https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd`
 
 4. Review or modify the script if desired, and ensure it is executable:
-   ```
-   chmod +x throwawaydeadd
-```
+
+   `chmod +x throwawaydeadd`
 
 5. Create link(s):
    ```
-   ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check
-   ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify
-```
+   `ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check`
+
+   `ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify`
 
 ### Configure throwawaydeadd
 
 To indicate that they should function as a MASTER server rather than a BACKUP server at a system/host rather than script/symbolic link level, MASTER server(s) MAY create a dotfile trigger in the same directory as the script or symbolic link.
 
 Example:
-   ```
-   touch /etc/scripts/.is_master_server
-```
+   `touch /etc/scripts/.is_master_server`
 
 If desired, create and populate the directory structure from which pre, post and failed service action hook scripts will be run from.
 
@@ -68,24 +62,43 @@ Those paths are `./hooks/pre_action`, `.hooks/post_action` and `.hooks/failed_ac
 Please note that post_action hooks will only be triggered if that action succeeds.
 
 Example:
-   ```
-   mkdir -p ./hooks/pre_action
-   mkdir -p ./hooks/post_action
-   mkdir -p ./hooks/failed_action
-```
+
+   `mkdir -p ./hooks/pre_action`
+
+   `mkdir -p ./hooks/post_action`
+
+   `mkdir -p ./hooks/failed_action`
 
 Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".
 
 External configuration may be supplied via a configuration file in the `/etc/scripts/` directory, with the same name as the service being monitored.
 
 - **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link, the default value is `false`.
-- **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following options to be performed on services in the form of `systemctl $option Example-Service`: `restart`, `start`, `stop`, `enable`, `disable`, `mask`, `unmask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `try-restart` and `try-reload-or-restart`, ONE (1) of the following options performed in the form of `systemctl $option`: `reboot`, `poweroff`, `halt`, `daemon-reexec`, `daemon-reload`, `suspend`, `hibernate`, `suspend-then-hibernate` and `hybrid-sleep`, or ONE (1) of the following null options: `none` or blank/unset. Note that not all options may be possible on all host servers. Any other string is rejected and will result in an abort with `exit 1`.
+
+- **LOG_VERBOSITY:** Any numeric value greater than 0 (zero) enables (at this point very basic) logging.
+
+- **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following options to be performed on services in the form of `systemctl $option Example-Service`:
+   `restart`, `start`, `stop`, `enable`, `disable`, `mask`, `unmask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `try-restart` and `try-reload-or-restart`.
+
+   ONE (1) of the following options performed in the form of `systemctl $option`:
+   `reboot`, `poweroff`, `halt`, `daemon-reexec`, `daemon-reload`, `suspend`, `hibernate`, `suspend-then-hibernate` and `hybrid-sleep`.
+
+   Or ONE (1) of the following null options:
+   `none` or blank/unset.
+
+   Note that not all options may be possible on all host servers.
+
+   Any other string is rejected and will result in an abort with `exit 1`.
+
 - **MAX_STATE_AGE:** The time elapsed (in seconds) before a service state derived from a state file should be considered fresh, the default value is `4` (FOUR) seconds.
-- **STATE_DIR:** The directory in which `.state` and `.lock` files should be kept, the default value is `/var/log`.
+
+- **STATE_DIR:** The directory in which `*.state` and `*.lock` files should be kept, the default value is `/var/log`.
 
 Example [/etc/scripts/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
    ```
    IS_MASTER="false"
+
+   LOG_VERBOSITY="0"
 
    MASTER_IS_BACKUP_ACTIVE="none"
    MASTER_IS_BACKUP_INACTIVE="start"

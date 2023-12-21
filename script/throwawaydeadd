@@ -1,66 +1,68 @@
 #!/usr/bin/env bash
 
 # throwawaydeadd
-# saint-lascivious (Hayden Pearce) ©2023
 
-# GNU General Public License Version 3
+# Author: saint-lascivious (Hayden Pearce) ©2023
+# License: GNU General Public License Version 3
 
 script_name="$(basename "$0")"
 service_name="${script_name%.*}"
 script_dir="$(pwd)"
-
 config_file="${script_dir}/${service_name}.conf"
 if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     # shellcheck source=/dev/null
     . "${config_file}"
 fi
-
 is_master="${IS_MASTER:-false}"
-
+log_verbosity="${LOG_VERBOSITY:-0}"
 master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
 master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
 master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
 master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-
 backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
 backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
 backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
 backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
-
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
 master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
 master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
 master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
 master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
-
 backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
 backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
 backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
 backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-
 max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
-
 pre_action_hook="${PRE_ACTION_HOOK:-pre_action}"
 post_action_hook="${POST_ACTION_HOOK:-post_action}"
 failed_action_hook="${FAILED_ACTION_HOOK:-failed_action}"
-
 master_flag_file="${script_dir}/.is_master_server"
 vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
+log_wrapper() {
+    local message="$1"
+    local verbosity="$2"
+    if [ "${log_verbosity}" -ge "${verbosity}" ]; then
+        echo "[$(date +"%Y-%m-%d %H:%M:%S")] ${message}"
+    fi
+}
+
 get_state() {
     if ! command -v systemctl > /dev/null; then
-        echo "Error: systemctl command not found"
+        log_wrapper "Error: systemctl command not found" 1
         exit 1
     fi
+    local current_time
     current_time="$(date +%s 2>/dev/null)"
+    local state_last_modified
     state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
-    state_age="$(("${current_time}" - "${state_last_modified}"))"
+    local state_age="$(("${current_time}" - "${state_last_modified}"))"
     if [ -f "${state_file}" ] && \
     [ "${state_age}" -le "${max_state_age}" ]; then
         service_state="$(cat "${state_file}" 2>/dev/null)"
@@ -75,8 +77,8 @@ get_state() {
 }
 
 hook_wrapper() {
-    hook_type="$1"
-    hook_dir="./hooks/${hook_type}"
+    local hook_type="$1"
+    local hook_dir="./hooks/${hook_type}"
     if [ -d "${hook_dir}" ]; then
         if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; \
         then
@@ -90,7 +92,7 @@ hook_wrapper() {
 }
 
 action_wrapper() {
-    action_string="$1"
+    local action_string="$1"
     case "${action_string}" in
         ""|"none")
             exit 0
@@ -118,7 +120,6 @@ action_wrapper() {
         ;;
     esac
     hook_wrapper "${post_action_hook}"
-    exit 0
 }
 
 exec 9>"$lock_file"
@@ -126,9 +127,7 @@ if flock -n 9; then
     get_state
     case "${vrrp_function}" in
         "check"|"CHECK")
-            if [ "${service_state}" = "active" ]; then
-                exit 0
-            else
+            if [ ! "${service_state}" = "active" ]; then
                 exit 1
             fi
         ;;
@@ -219,4 +218,5 @@ if flock -n 9; then
             esac
         ;;
     esac
+    exit 0
 fi
