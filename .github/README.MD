@@ -1,6 +1,7 @@
 # [throwawaydeadd](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd "Link to throwawaydeadd script")
 
 **Author:** saint-lascivious (Hayden Pearce) ©2023
+
 **License:** GNU General Public License Version 3
 
 ## Overview
@@ -8,12 +9,19 @@
 A simple and highly flexible `keepalived` check and/or notify script particularly useful for managing failover scenarios in a high-availability environment.
 
 ## Features
+
 - **Simplicity:** Monitor (and optionally take action on) a service as easily as renaming a file or creating a symbolic link.
+
 - **Check/Notify:** `throwawaydeadd` operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
+
 - **Notify Actions:** Perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
+
 - **Low Dependency:** Simple bash shell construction, requires only some basic `bash` builtins, `systemctl` and `date` commands.
+
 - **Configurable:** External configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
+
 - **State/Lock Files:** State file prevents state "flapping" or "ping-pong". Lock file prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
+
 - **Extensible Hooks:** Execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action.
 
 ## [Check/Notify Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to throwawaydeadd keepalived check/notify script folder")
