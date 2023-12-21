@@ -14,15 +14,15 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 - **Check/Notify:** `throwawaydeadd` operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
 
-- **Notify Actions:** Perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
+- **Notify Actions:** Optionally perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
 
-- **Low Dependency:** Simple bash shell construction, requires only some basic `bash` builtins, `systemctl` and `date` commands.
+- **Low Dependency:** Simple bash shell construction requires only some basic `bash` builtins, `systemctl`, `find` and `date`.
 
-- **Configurable:** External configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
+- **Configurable:** Optional external configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
 
-- **State/Lock Files:** State file prevents state "flapping" or "ping-pong". Lock file prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
+- **State/Lock Files:** The state file prevents state "flapping" or "ping-pong", lock file prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
 
-- **Extensible Hooks:** Execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action.
+- **Extensible Hooks:** Optionally execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action.
 
 ## [Check/Notify Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to throwawaydeadd keepalived check/notify script folder")
 
@@ -30,9 +30,9 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 All commands given are assumed to be run as `root` or equivalent (with `sudo`).
 
-The basename and file extension will dictate the service to monitor and the function to perform respectively. The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`. It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
-
 All examples going forward will assume that the service to be monitored is named `Example-Service`.
+
+The basename and file extension will dictate the service to monitor and the function to perform respectively. The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`. It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
 
 1. Create the directory `throwawaydeadd` and its symbolic links will live:
 
@@ -62,7 +62,9 @@ To indicate that they should function as a MASTER server rather than a BACKUP se
 
 Example:
 
-   `touch /etc/scripts/.is_master_server`
+```
+touch /etc/scripts/.is_master_server
+```
 
 If desired, create and populate the directory structure from which pre, post and failed service action hook scripts will be run from.
 
@@ -72,11 +74,17 @@ Please note that post_action hooks will only be triggered if that action succeed
 
 Example:
 
-   `mkdir -p ./hooks/pre_action`
+```
+mkdir -p ./hooks/pre_action
+```
 
-   `mkdir -p ./hooks/post_action`
+```
+mkdir -p ./hooks/post_action
+```
 
-   `mkdir -p ./hooks/failed_action`
+```
+mkdir -p ./hooks/failed_action
+```
 
 Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".
 
@@ -84,7 +92,13 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 
 - **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link, the default value is `false`.
 
-- **LOG_VERBOSITY:** Any numeric value greater than 0 (zero) enables (at this point very basic) logging.
+- **LOG_DIR:** The directory in which the `throwawaydeadd` log is kept, the default value is `/var/log`.
+
+- **LOG_FILE:** The file name the `throwawaydeadd` log, the default value is `throwawaydeadd.log`.
+
+- **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
+
+   `0` none, `1` error, `2` warning, `3` info and `4` debug.
 
 - **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following options to be performed on services in the form of `systemctl $option Example-Service`:
 
@@ -107,41 +121,44 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 - **STATE_DIR:** The directory in which `*.state` and `*.lock` files should be kept, the default value is `/var/log`.
 
 Example [/etc/scripts/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
-   ```
-   IS_MASTER="false"
 
-   LOG_VERBOSITY="0"
+```
+IS_MASTER="false"
 
-   MASTER_IS_BACKUP_ACTIVE="none"
-   MASTER_IS_BACKUP_INACTIVE="start"
-   MASTER_IS_BACKUP_FAILED="restart"
-   MASTER_IS_BACKUP_DISABLED="enable"
-   MASTER_IS_BACKUP_MASKED="none"
+LOG_DIR="/var/log"
+LOG_FILE="throwawaydeadd.log"
+LOG_VERBOSITY="0"
 
-   BACKUP_IS_BACKUP_ACTIVE="none"
-   BACKUP_IS_BACKUP_INACTIVE="start"
-   BACKUP_IS_BACKUP_FAILED="restart"
-   BACKUP_IS_BACKUP_DISABLED="enable"
-   BACKUP_IS_BACKUP_MASKED="none"
+MASTER_IS_BACKUP_ACTIVE="none"
+MASTER_IS_BACKUP_INACTIVE="start"
+MASTER_IS_BACKUP_FAILED="restart"
+MASTER_IS_BACKUP_DISABLED="enable"
+MASTER_IS_BACKUP_MASKED="none"
 
-   MASTER_IS_MASTER_ACTIVE="none"
-   MASTER_IS_MASTER_INACTIVE="start"
-   MASTER_IS_MASTER_FAILED="restart"
-   MASTER_IS_MASTER_DISABLED="enable"
-   MASTER_IS_MASTER_MASKED="none"
+BACKUP_IS_BACKUP_ACTIVE="none"
+BACKUP_IS_BACKUP_INACTIVE="start"
+BACKUP_IS_BACKUP_FAILED="restart"
+BACKUP_IS_BACKUP_DISABLED="enable"
+BACKUP_IS_BACKUP_MASKED="none"
 
-   BACKUP_IS_MASTER_ACTIVE="none"
-   BACKUP_IS_MASTER_INACTIVE="start"
-   BACKUP_IS_MASTER_FAILED="restart"
-   BACKUP_IS_MASTER_DISABLED="enable"
-   BACKUP_IS_MASTER_MASKED="none"
+MASTER_IS_MASTER_ACTIVE="none"
+MASTER_IS_MASTER_INACTIVE="start"
+MASTER_IS_MASTER_FAILED="restart"
+MASTER_IS_MASTER_DISABLED="enable"
+MASTER_IS_MASTER_MASKED="none"
 
-   PRE_ACTION_HOOK="pre_action"
-   POST_ACTION_HOOK="post_action"
-   FAILED_ACTION_HOOK="failed_action"
+BACKUP_IS_MASTER_ACTIVE="none"
+BACKUP_IS_MASTER_INACTIVE="start"
+BACKUP_IS_MASTER_FAILED="restart"
+BACKUP_IS_MASTER_DISABLED="enable"
+BACKUP_IS_MASTER_MASKED="none"
 
-   MAX_STATE_AGE="4"
-   STATE_DIR="/var/log"
+PRE_ACTION_HOOK="pre_action"
+POST_ACTION_HOOK="post_action"
+FAILED_ACTION_HOOK="failed_action"
+
+MAX_STATE_AGE="4"
+STATE_DIR="/var/log"
 ```
 
 ## [VRRP Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to keepalived VRRP config folder")
@@ -163,87 +180,89 @@ Once again, any/all instances of `Example-Service`/`EXAMPLE_SERVICE` used in the
 ### [MASTER](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to MASTER keepalived VRRP config folder")
 
 Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/config/MASTER/keepalived.conf "Link to example MASTER keepalived.conf") for MASTER server:
-   ```
-   global_defs {
-       enable_script_security
-       max_auto_priority 99
-       router_id MASTER
-       script_user root
-   }
 
-   vrrp_script check_Example-Service {
-       script "/etc/scripts/Example-Service.check"
-       interval 5
-       weight -10
-       timeout 4
-       rise 12
-       fall 2
-   }
+```
+global_defs {
+    enable_script_security
+    max_auto_priority 99
+    router_id MASTER
+    script_user root
+}
 
-   vrrp_instance EXAMPLE_SERVICE {
-       state MASTER
-       interface eth0
-       virtual_router_id 99
-       priority 150
-       advert_int 1
-       unicast_src_ip 192.168.1.10
-       unicast_peer {
-           192.168.1.20
-       }
-       authentication {
-           auth_type PASS
-           auth_pass default
-       }
-       virtual_ipaddress {
-           192.168.1.99/24
-       }
-       track_script {
-           check_Example-Service
-       }
-       notify /etc/scripts/Example-Service.notify
-   }
+vrrp_script check_Example-Service {
+    script "/etc/scripts/Example-Service.check"
+    interval 5
+    weight -10
+    timeout 4
+    rise 12
+    fall 2
+}
+
+vrrp_instance EXAMPLE_SERVICE {
+    state MASTER
+    interface eth0
+    virtual_router_id 99
+    priority 150
+    advert_int 1
+    unicast_src_ip 192.168.1.10
+    unicast_peer {
+        192.168.1.20
+    }
+    authentication {
+        auth_type PASS
+        auth_pass default
+    }
+    virtual_ipaddress {
+        192.168.1.99/24
+    }
+    track_script {
+        check_Example-Service
+    }
+    notify /etc/scripts/Example-Service.notify
+}
 ```
 
 ### [BACKUP](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to BACKUP keepalived VRRP config folder")
 
 Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/config/BACKUP/keepalived.conf "Link to example BACKUP keepalived.conf") for BACKUP server:
-   ```
-   global_defs {
-       enable_script_security
-       max_auto_priority 99
-       router_id BACKUP
-       script_user root
-   }
 
-   vrrp_script check_Example-Service {
-       script "/etc/scripts/Example-Service.check"
-       interval 5
-       weight -10
-       timeout 4
-       rise 12
-       fall 2
-   }
+```
+global_defs {
+    enable_script_security
+    max_auto_priority 99
+    router_id BACKUP
+    script_user root
+}
 
-   vrrp_instance EXAMPLE_SERVICE {
-       state BACKUP
-       interface eth0
-       virtual_router_id 99
-       priority 145
-       advert_int 1
-       unicast_src_ip 192.168.1.20
-       unicast_peer {
-           192.168.1.10
-       }
-       authentication {
-           auth_type PASS
-           auth_pass default
-       }
-       virtual_ipaddress {
-           192.168.1.99/24
-       }
-       track_script {
-           check_Example-Service
-       }
-       notify /etc/scripts/Example-Service.notify
-   }
+vrrp_script check_Example-Service {
+    script "/etc/scripts/Example-Service.check"
+    interval 5
+    weight -10
+    timeout 4
+    rise 12
+    fall 2
+}
+
+vrrp_instance EXAMPLE_SERVICE {
+    state BACKUP
+    interface eth0
+    virtual_router_id 99
+    priority 145
+    advert_int 1
+    unicast_src_ip 192.168.1.20
+    unicast_peer {
+        192.168.1.10
+    }
+    authentication {
+        auth_type PASS
+        auth_pass default
+    }
+    virtual_ipaddress {
+        192.168.1.99/24
+    }
+    track_script {
+        check_Example-Service
+    }
+    notify /etc/scripts/Example-Service.notify
+}
 ```

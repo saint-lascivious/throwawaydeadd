@@ -14,6 +14,8 @@ if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     . "${config_file}"
 fi
 is_master="${IS_MASTER:-false}"
+log_dir="${LOG_DIR:-/var/log}"
+log_file="${LOG_FILE:-throwawaydeadd.log}"
 log_verbosity="${LOG_VERBOSITY:-0}"
 master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
@@ -49,13 +51,28 @@ log_wrapper() {
     local message="$1"
     local verbosity="$2"
     if [ "${log_verbosity}" -ge "${verbosity}" ]; then
-        echo "[$(date +"%d-%m-%Y %H:%M:%S.%3N")] ${message}"
+        case "${verbosity}" in
+            "1")
+                log_type="ERROR: "
+            ;;
+            "2")
+                log_type="WARNING: "
+            ;;
+            "3")
+                log_type="INFO: "
+            ;;
+            "4")
+                log_type="DEBUG: "
+            ;;
+        esac
+        echo "[$(date +"%d-%m-%Y %H:%M:%S.%3N")] ${log_type}${message}" >> \
+        "${log_dir}/${log_file}"
     fi
 }
 
 get_state() {
     if ! command -v systemctl > /dev/null; then
-        log_wrapper "Error: systemctl command not found" 1
+        log_wrapper "systemctl command not found" 1
         exit 1
     fi
     local current_time
@@ -95,6 +112,7 @@ action_wrapper() {
     local action_string="$1"
     case "${action_string}" in
         ""|"none")
+            log_wrapper "not performing any action" 4
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
@@ -103,6 +121,8 @@ action_wrapper() {
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" "${service_name}" > \
             /dev/null; then
+                log_wrapper "command systemctl ${action_string} \
+                ${service_name} failed" 1
                 hook_wrapper "${failed_action_hook}"
                 exit 1
             fi
@@ -111,11 +131,13 @@ action_wrapper() {
         "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" > /dev/null; then
+                log_wrapper "command systemctl ${action_string} failed" 1
                 hook_wrapper "${failed_action_hook}"
                 exit 1
             fi
         ;;
         *)
+            log_wrapper "unrecognised action ${action_string}" 1
             exit 1
         ;;
     esac
@@ -128,8 +150,10 @@ if flock -n 9; then
     case "${vrrp_function}" in
         "check"|"CHECK")
             if [ ! "${service_state}" = "active" ]; then
+                log_wrapper "${service_name} is ${service_state}" 1
                 exit 1
             fi
+            log_wrapper "check script ran successfully" 4
         ;;
         "notify"|"NOTIFY")
             vrrp_state="$3"
@@ -139,6 +163,7 @@ if flock -n 9; then
             case "${vrrp_state}" in
                 "backup"|"BACKUP")
                     if [ "${is_master}" = "true" ]; then
+                        log_wrapper "master in backup state" 2
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
@@ -157,6 +182,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
+                        log_wrapper "backup in backup state" 3
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
@@ -178,6 +204,7 @@ if flock -n 9; then
                 ;;
                 "master"|"MASTER")
                     if [ "${is_master}" = "true" ]; then
+                        log_wrapper "master in master state" 3
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${master_is_master_active}"
@@ -196,6 +223,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
+                        log_wrapper "backup in master state" 2
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
@@ -216,6 +244,7 @@ if flock -n 9; then
                     fi
                 ;;
             esac
+            log_wrapper "notify script ran successfully" 4
         ;;
     esac
     exit 0
