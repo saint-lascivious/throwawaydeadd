@@ -16,13 +16,13 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 - **Notify Actions:** Optionally perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
 
-- **Low Dependency:** Simple bash shell construction requires only some basic `bash` builtins, `systemctl`, `find` and `date`.
+- **Low Dependency:** Simple bash shell construction requires only some basic `bash` builtins, `systemctl`, `basename`, `cat`, `find`, `date`, `pwd`, `sed` and `which`.
 
 - **Configurable:** Optional external configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
 
 - **State/Lock Files:** The state file prevents state "flapping" or "ping-pong", lock file prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
 
-- **Extensible Hooks:** Optionally execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action.
+- **Extensible Hooks:** Optionally execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action, the interpreter is parsed from the shebang if possible on a case by case basis or otherwise defaults to `bash`.
 
 ## [Check/Notify Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to throwawaydeadd keepalived check/notify script folder")
 

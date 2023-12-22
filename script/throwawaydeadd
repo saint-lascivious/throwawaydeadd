@@ -46,12 +46,17 @@ vrrp_function="${script_name##*.}"
 lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
+log_directory_creation() {
+    local directory="$1"
+    log_wrapper "creating directory ${directory}" 4
+}
+
 log_wrapper() {
     local message="$1"
     local verbosity="$2"
     if [ "${log_verbosity}" -ge "${verbosity}" ]; then
         if [ ! -d "${log_dir}" ]; then
-            mkdir -p "${log_dir}"
+            mkdir -p "${log_dir}" && log_directory_creation "${log_dir}"
         fi
         case "${verbosity}" in
             "1")
@@ -67,8 +72,7 @@ log_wrapper() {
                 log_type="DEBUG: "
             ;;
         esac
-        echo "[$(date +"%d-%m-%Y %H:%M:%S.%3N")] ${log_type}${message}" >> \
-        "${log_dir}/${service_name}.log"
+        echo "[$(date +"%d-%m-%Y %H:%M:%S.%3N%:z %Z")] ${log_type}${message}" >> "${log_dir}/${service_name}.log"
     fi
 }
 
@@ -82,15 +86,15 @@ get_state() {
     local state_last_modified
     state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
     local state_age="$(("${current_time}" - "${state_last_modified}"))"
-    if [ -f "${state_file}" ] && \
-    [ "${state_age}" -le "${max_state_age}" ]; then
+    if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
         service_state="$(cat "${state_file}" 2>/dev/null)"
     else
         exec 8>"$state_file"
         if flock -n 8; then
-            service_state="$(systemctl is-active "${service_name}" \
-            2>/dev/null)"
+            service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
             echo "${service_state}" > "${state_file}"
+        else
+            log_wrapper "could not get lock for ${state_file}" 4
         fi
     fi
 }
@@ -99,11 +103,20 @@ hook_wrapper() {
     local hook_type="$1"
     local hook_dir="./hooks/${hook_type}"
     if [ -d "${hook_dir}" ]; then
-        if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; \
-        then
+        if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
+            log_wrapper "executing hook script(s) of type ${hook_type}" 3
             for hook_script in "${hook_dir}"/*; do
                 if [ -x "${hook_script}" ]; then
-                    "${hook_script}"
+                    local hook_shebang
+                    hook_shebang="$(sed -nE '1s|^#!\s*.*/(env )?([^ ]+).*|\2|p' "${hook_dir}/${hook_script}")"
+                    local interpreter
+                    if [ -n "${hook_shebang}" ]; then
+                        interpreter="$(which "${hook_shebang}")"
+                    else
+                        interpreter="$(which bash)"
+                    fi
+                    log_wrapper "executing ${hook_dir}/${hook_script} with ${interpreter}" 4
+                    exec "${interpreter}" "${hook_script}"
                 fi
             done
         fi
@@ -117,20 +130,15 @@ action_wrapper() {
             log_wrapper "not performing any action" 4
             exit 0
         ;;
-        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"| \
-        "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"| \
-        "try-reload-or-restart")
+        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
             hook_wrapper "${pre_action_hook}"
-            if ! systemctl "${action_string}" "${service_name}" > \
-            /dev/null; then
-                log_wrapper "command systemctl ${action_string} \
-                ${service_name} failed" 1
+            if ! systemctl "${action_string}" "${service_name}" > /dev/null; then
+                log_wrapper "command systemctl ${action_string} ${service_name} failed" 1
                 hook_wrapper "${failed_action_hook}"
                 exit 1
             fi
         ;;
-        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"| \
-        "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" > /dev/null; then
                 log_wrapper "command systemctl ${action_string} failed" 1
@@ -250,4 +258,6 @@ if flock -n 9; then
         ;;
     esac
     exit 0
+else
+    log_wrapper "could not get lock for ${lock_file}" 4
 fi
