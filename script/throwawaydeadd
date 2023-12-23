@@ -16,6 +16,7 @@ fi
 is_master="${IS_MASTER:-false}"
 log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
 log_verbosity="${LOG_VERBOSITY:-0}"
+expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
 master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
 master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
 master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
@@ -111,11 +112,11 @@ hook_wrapper() {
                     hook_shebang="$(sed -nE '1s|^#!\s*.*/(env )?([^ ]+).*|\2|p' "${hook_dir}/${hook_script}")"
                     local interpreter
                     if [ -n "${hook_shebang}" ]; then
-                        interpreter="$(which "${hook_shebang}")"
+                        interpreter="$(command -v "${hook_shebang}")"
                     else
-                        interpreter="$(which bash)"
+                        interpreter="$(command -v bash)"
                     fi
-                    log_wrapper "executing ${hook_dir}/${hook_script} with ${interpreter}" 4
+                    log_wrapper "executing ${hook_dir}/${hook_script} with ${interpreter}" 3
                     exec "${interpreter}" "${hook_script}"
                 fi
             done
@@ -159,7 +160,7 @@ if flock -n 9; then
     get_state
     case "${vrrp_function}" in
         "check"|"CHECK")
-            if [ ! "${service_state}" = "active" ]; then
+            if [ ! "${service_state}" = "${expected_service_state}" ]; then
                 log_wrapper "${service_name} is ${service_state}" 1
                 exit 1
             fi
@@ -169,6 +170,7 @@ if flock -n 9; then
             vrrp_state="$3"
             if [ -f "${master_flag_file}" ]; then
                 is_master="true"
+                log_wrapper "${master_flag_file} detected" 4
             fi
             case "${vrrp_state}" in
                 "backup"|"BACKUP")

@@ -16,7 +16,7 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 - **Notify Actions:** Optionally perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
 
-- **Low Dependency:** Simple bash shell construction requires only some basic `bash` builtins, `systemctl`, `basename`, `cat`, `find`, `date`, `pwd`, `sed` and `which`.
+- **Low Dependency:** Simple bash shell construction requires only `systemctl` and some basic built-ins.
 
 - **Configurable:** Optional external configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
 
@@ -94,6 +94,10 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 
 - **LOG_DIR:** The directory in which the `throwawaydeadd` logs are kept, the default value is `/var/log/throwawaydeadd`.
 
+- **EXPECTED_SERVICE_STATE:** The expected service state for check operations.
+
+   If a service is found to be in a state other than the expected state then the check will fail, the default value is `active`.
+
 - **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
 
    `0` none, `1` error, `2` warning, `3` info and `4` debug.
@@ -122,39 +126,32 @@ Example [/etc/scripts/Example-Service.conf](https://raw.githubusercontent.com/sa
 
 ```
 IS_MASTER="false"
-
-LOG_DIR="/var/log"
-LOG_FILE="throwawaydeadd.log"
+LOG_DIR="/var/log/throwawaydeadd"
 LOG_VERBOSITY="0"
-
+EXPECTED_SERVICE_STATE="active"
 MASTER_IS_BACKUP_ACTIVE="none"
 MASTER_IS_BACKUP_INACTIVE="start"
 MASTER_IS_BACKUP_FAILED="restart"
 MASTER_IS_BACKUP_DISABLED="enable"
 MASTER_IS_BACKUP_MASKED="none"
-
 BACKUP_IS_BACKUP_ACTIVE="none"
 BACKUP_IS_BACKUP_INACTIVE="start"
 BACKUP_IS_BACKUP_FAILED="restart"
 BACKUP_IS_BACKUP_DISABLED="enable"
 BACKUP_IS_BACKUP_MASKED="none"
-
 MASTER_IS_MASTER_ACTIVE="none"
 MASTER_IS_MASTER_INACTIVE="start"
 MASTER_IS_MASTER_FAILED="restart"
 MASTER_IS_MASTER_DISABLED="enable"
 MASTER_IS_MASTER_MASKED="none"
-
 BACKUP_IS_MASTER_ACTIVE="none"
 BACKUP_IS_MASTER_INACTIVE="start"
 BACKUP_IS_MASTER_FAILED="restart"
 BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_MASKED="none"
-
 PRE_ACTION_HOOK="pre_action"
 POST_ACTION_HOOK="post_action"
 FAILED_ACTION_HOOK="failed_action"
-
 MAX_STATE_AGE="4"
 STATE_DIR="/var/log"
 ```
