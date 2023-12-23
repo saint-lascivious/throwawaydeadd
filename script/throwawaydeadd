@@ -8,6 +8,7 @@
 script_name="$(basename "$0")"
 service_name="${script_name%.*}"
 script_dir="$(pwd)"
+script_function="${script_name##*.}"
 config_file="${script_dir}/${service_name}.conf"
 if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     # shellcheck source=/dev/null
@@ -43,8 +44,7 @@ pre_action_hook="${PRE_ACTION_HOOK:-pre_action}"
 post_action_hook="${POST_ACTION_HOOK:-post_action}"
 failed_action_hook="${FAILED_ACTION_HOOK:-failed_action}"
 master_flag_file="${script_dir}/.is_master_server"
-vrrp_function="${script_name##*.}"
-lock_file="${state_dir}/${service_name}-${vrrp_function}.lock"
+lock_file="${state_dir}/${service_name}-${script_function}.lock"
 state_file="${state_dir}/${service_name}.state"
 
 log_directory_creation() {
@@ -158,7 +158,7 @@ action_wrapper() {
 exec 9>"$lock_file"
 if flock -n 9; then
     get_state
-    case "${vrrp_function}" in
+    case "${script_function}" in
         "check"|"CHECK")
             if [ ! "${service_state}" = "${expected_service_state}" ]; then
                 log_wrapper "${service_name} is ${service_state}" 1
@@ -175,7 +175,7 @@ if flock -n 9; then
             case "${vrrp_state}" in
                 "backup"|"BACKUP")
                     if [ "${is_master}" = "true" ]; then
-                        log_wrapper "master in backup state" 2
+                        log_wrapper "master switched to backup state" 2
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
@@ -194,7 +194,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-                        log_wrapper "backup in backup state" 3
+                        log_wrapper "backup switched to backup state" 3
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
@@ -216,7 +216,7 @@ if flock -n 9; then
                 ;;
                 "master"|"MASTER")
                     if [ "${is_master}" = "true" ]; then
-                        log_wrapper "master in master state" 3
+                        log_wrapper "master switched to master state" 3
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${master_is_master_active}"
@@ -235,7 +235,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-                        log_wrapper "backup in master state" 2
+                        log_wrapper "backup switched to master state" 2
                         case "${service_state}" in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
@@ -257,6 +257,14 @@ if flock -n 9; then
                 ;;
             esac
             log_wrapper "notify script ran successfully" 4
+        ;;
+        "")
+            log_wrapper "unable to determine script function" 1
+            exit 1
+        ;;
+        *)
+            log_wrapper "unrecognised script function ${script_function}" 1
+            exit 1
         ;;
     esac
     exit 0
