@@ -86,7 +86,8 @@ get_state() {
     current_time="$(date +%s 2>/dev/null)"
     local state_last_modified
     state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
-    local state_age="$(("${current_time}" - "${state_last_modified}"))"
+    local state_age
+    state_age="$(("${current_time}" - "${state_last_modified}"))"
     if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
         service_state="$(cat "${state_file}" 2>/dev/null)"
     else
