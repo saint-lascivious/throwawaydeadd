@@ -112,7 +112,9 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 
    Or ONE (1) of the following null options:
 
-   `none` or blank/unset.
+   `none` no action is performed, no hooks are executed.
+
+   `null` a "null"/dummy action is performed, with any `pre_action` and/or `post_action` hook(s) executed as normal.
 
    Note that not all options may be possible on all host servers.
 

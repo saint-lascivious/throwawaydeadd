@@ -127,11 +127,12 @@ hook_wrapper() {
 action_wrapper() {
     local action_string="$1"
     case "${action_string}" in
-        ""|"none")
-            log_wrapper "not performing any action" 4
+        "none")
+            log_wrapper "not performing an action" 4
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+            log_wrapper "action is ${action_string}" 4
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" "${service_name}" > /dev/null; then
                 log_wrapper "command systemctl ${action_string} ${service_name} failed" 1
@@ -140,6 +141,7 @@ action_wrapper() {
             fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+            log_wrapper "action is ${action_string}" 4
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" > /dev/null; then
                 log_wrapper "command systemctl ${action_string} failed" 1
@@ -147,12 +149,17 @@ action_wrapper() {
                 exit 1
             fi
         ;;
+        "null")
+            log_wrapper "null action" 4
+            hook_wrapper "${pre_action_hook}"
+        ;;
         *)
             log_wrapper "unrecognised action ${action_string}" 1
             exit 1
         ;;
     esac
     hook_wrapper "${post_action_hook}"
+    exit 0
 }
 
 exec 9>"$lock_file"
