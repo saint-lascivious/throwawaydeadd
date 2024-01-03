@@ -68,7 +68,7 @@ touch /etc/scripts/.is_master_server
 
 If desired, create and populate the directory structure from which pre, post and failed service action hook scripts will be run from.
 
-Those paths are `./hooks/pre_action`, `.hooks/post_action` and `.hooks/failed_action` for pre, post and failed action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
+Those paths are `./hooks/pre_action`, `.hooks/post_action` and `.hooks/action_failed` for pre, post and failed action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
 
 Please note that post_action hooks will only be triggered if that action succeeds.
 
@@ -83,7 +83,7 @@ mkdir -p ./hooks/post_action
 ```
 
 ```
-mkdir -p ./hooks/failed_action
+mkdir -p ./hooks/action_failed
 ```
 
 Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".
@@ -100,21 +100,53 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 
 - **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
 
-   `0` none, `1` error, `2` warning, `3` info and `4` debug.
+   | Verbosity Level | Log Type |
+   | :---: | :---: |
+   | `0` | No logging. |
+   | `1` | Errors. |
+   | `2` | Warnings. |
+   | `3` | Info messages. |
+   | `4` | Debug messages |
 
-- **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following options to be performed on services in the form of `systemctl $option Example-Service`:
+- **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION Example-Service`:
 
-   `restart`, `start`, `stop`, `enable`, `disable`, `mask`, `unmask`, `reenable`, `reload`, `reload-or-restart`, `reset-failed`, `try-restart` and `try-reload-or-restart`.
+   | Action | Description |
+   | :---: | :---: |
+   | `restart` | Stop and then start one or more units specified on the command line. If the units are not running yet, they will be started. |
+   | `start` | Start (activate) one or more units specified on the command line. |
+   | `stop` | Stop (deactivate) one or more units specified on the command line. |
+   | `enable` | Enable one or more units or unit instances. This will create a set of symlinks, as encoded in the [Install] sections of the indicated unit files. After the symlinks have been created, the system manager configuration is reloaded (in a way equivalent to daemon-reload), in order to ensure the changes are taken into account immediately. Note that this does not have the effect of also starting any of the units being enabled. If this is desired, combine this command with the --now switch, or invoke start with appropriate arguments later. Note that in case of unit instance enablement (i.e. enablement of units of the form foo@bar.service), symlinks named the same as instances are created in the unit configuration directory, however they point to the single template unit file they are instantiated from. |
+   | `disable` | Disables one or more units. This removes all symlinks to the unit files backing the specified units from the unit configuration directory, and hence undoes any changes made by enable or link. Note that this removes all symlinks to matching unit files, including manually created symlinks, and not just those actually created by enable or link. Note that while disable undoes the effect of enable, the two commands are otherwise not symmetric, as disable may remove more symlinks than a prior enable invocation of the same unit created. |
+   | `mask` | Mask one or more units, as specified on the command line. This will link these unit files to /dev/null, making it impossible to start them. This is a stronger version of disable, since it prohibits all kinds of activation of the unit, including enablement and manual activation. Use this option with care. This honors the --runtime option to only mask temporarily until the next reboot of the system. The --now option may be used to ensure that the units are also stopped. This command expects valid unit names only, it does not accept unit file paths. |
+   | `unmask` | Unmask one or more unit files, as specified on the command line. This will undo the effect of mask. This command expects valid unit names only, it does not accept unit file paths. |
+   | `reenable` | Reenable one or more units, as specified on the command line. This is a combination of disable and enable and is useful to reset the symlinks a unit file is enabled with to the defaults configured in its [Install] section. This command expects a unit name only, it does not accept paths to unit files. |
+   | `reload` | Asks all units listed on the command line to reload their configuration. Note that this will reload the service-specific configuration, not the unit configuration file of systemd. If you want systemd to reload the configuration file of a unit, use the daemon-reload command. In other words: for the example case of Apache, this will reload Apache's httpd.conf in the web server, not the apache.service systemd unit file. |
+   | `reload-or-restart` | Reload one or more units if they support it. If not, stop and then start them instead. If the units are not running yet, they will be started. |
+   | `reset-failed` | Reset the "failed" state of the specified units, or if no unit name is passed, reset the state of all units. When a unit fails in some way (i.e. process exiting with non-zero error code, terminating abnormally or timing out), it will automatically enter the "failed" state and its exit code and status is recorded for introspection by the administrator until the service is stopped/re-started or reset with this command. |
+   | `try-restart` | Stop and then start one or more units specified on the command line if the units are running. This does nothing if units are not running. |
+   | `try-reload-or-restart` | Reload one or more units if they support it. If not, stop and then start them instead. This does nothing if the units are not running. |
 
-   ONE (1) of the following options performed in the form of `systemctl $option`:
+   ONE (1) of the following actions performed in the form of `systemctl $ACTION`:
 
-   `reboot`, `poweroff`, `halt`, `daemon-reexec`, `daemon-reload`, `suspend`, `hibernate`, `suspend-then-hibernate` and `hybrid-sleep`.
+   | Action | Description |
+   | :---: | :---: |
+   | `reboot` | Shut down and reboot the system. |
+   | `halt` | Shut down and halt the system. This is mostly equivalent to systemctl start halt.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the halt operation is enqueued, without waiting for it to complete. Note that this operation will simply halt the OS kernel after shutting down, leaving the hardware powered on. Use systemctl poweroff for powering off the system (see below). |
+   | `poweroff` | Shut down and power-off the system. This is mostly equivalent to systemctl start poweroff.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the power-off operation is enqueued, without waiting for it to complete. |
+   | `daemon-reexec` | Reexecute the systemd manager. This will serialize the manager state, reexecute the process and deserialize the state again. This command is of little use except for debugging and package upgrades. Sometimes, it might be helpful as a heavy-weight daemon-reload. While the daemon is being reexecuted, all sockets systemd listening on behalf of user configuration will stay accessible. |
+   | `daemon-reload` | Reload the systemd manager configuration. This will rerun all generators (see systemd.generator(7)), reload all unit files, and recreate the entire dependency tree. While the daemon is being reloaded, all sockets systemd listens on behalf of user configuration will stay accessible. |
+   | `sleep` | Put the system to sleep, through suspend, hibernate, hybrid-sleep, or suspend-then-hibernate. The sleep operation to use is automatically selected by systemd-logind.service(8). By default, suspend-then-hibernate is used, and falls back to suspend and then hibernate if not supported. Refer to SleepOperation= setting in logind.conf(5) for more details. This command is asynchronous, and will return after the sleep operation is successfully enqueued. It will not wait for the sleep/resume cycle to complete. |
+   | `suspend` | Suspend the system. This will trigger activation of the special target unit suspend.target. This command is asynchronous, and will return after the suspend operation is successfully enqueued. It will not wait for the suspend/resume cycle to complete. |
+   | `hibernate` | Hibernate the system. This will trigger activation of the special target unit hibernate.target. This command is asynchronous, and will return after the hibernation operation is successfully enqueued. It will not wait for the hibernate/thaw cycle to complete. |
+   | `suspend-then-hibernate` | Suspend the system and hibernate it after the delay specified in systemd-sleep.conf. This will trigger activation of the special target unit suspend-then-hibernate.target. This command is asynchronous, and will return after the hybrid sleep operation is successfully enqueued. It will not wait for the sleep/wake-up or hibernate/thaw cycle to complete. |
+   | `hybrid-sleep` | Hibernate and suspend the system. This will trigger activation of the special target unit hybrid-sleep.target. This command is asynchronous, and will return after the hybrid sleep operation is successfully enqueued. It will not wait for the sleep/wake-up cycle to complete. |
 
-   Or ONE (1) of the following null options:
+   Or ONE (1) of the following options:
 
-   `none` no action is performed, no hooks are executed.
-
-   `null` a "null"/dummy action is performed, with any `pre_action` and/or `post_action` hook(s) executed as normal.
+   | Action | Description |
+   | :---: | :---: |
+   | `none` | No action is performed, no hooks are executed. |
+   | `null` | A "null"/dummy (skeleton) action is performed, with any `pre_action` and/or `post_action` hook(s) executed as normal. |
 
    Note that not all options may be possible on all host servers.
 
@@ -153,7 +185,7 @@ BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_MASKED="none"
 PRE_ACTION_HOOK="pre_action"
 POST_ACTION_HOOK="post_action"
-FAILED_ACTION_HOOK="failed_action"
+ACTION_FAILED_HOOK="action_failed"
 MAX_STATE_AGE="4"
 STATE_DIR="/var/log"
 ```

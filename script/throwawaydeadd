@@ -42,7 +42,7 @@ max_state_age="${MAX_STATE_AGE:-4}"
 state_dir="${STATE_DIR:-/var/log}"
 pre_action_hook="${PRE_ACTION_HOOK:-pre_action}"
 post_action_hook="${POST_ACTION_HOOK:-post_action}"
-failed_action_hook="${FAILED_ACTION_HOOK:-failed_action}"
+action_failed_hook="${ACTION_FAILED_HOOK:-action_failed}"
 master_flag_file="${script_dir}/.is_master_server"
 lock_file="${state_dir}/${service_name}-${script_function}.lock"
 state_file="${state_dir}/${service_name}.state"
@@ -104,24 +104,14 @@ get_state() {
 hook_wrapper() {
     local hook_type="$1"
     local hook_dir="./hooks/${hook_type}"
-    if [ -d "${hook_dir}" ]; then
-        if [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
-            log_wrapper "executing hook script(s) of type ${hook_type}" 3
-            for hook_script in "${hook_dir}"/*; do
-                if [ -x "${hook_script}" ]; then
-                    local hook_shebang
-                    hook_shebang="$(sed -nE '1s|^#!\s*.*/(env )?([^ ]+).*|\2|p' "${hook_dir}/${hook_script}")"
-                    local interpreter
-                    if [ -n "${hook_shebang}" ]; then
-                        interpreter="$(command -v "${hook_shebang}")"
-                    else
-                        interpreter="$(command -v bash)"
-                    fi
-                    log_wrapper "executing ${hook_dir}/${hook_script} with ${interpreter}" 3
-                    exec "${interpreter}" "${hook_script}"
-                fi
-            done
-        fi
+    if [ -d "${hook_dir}" ] && [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
+        log_wrapper "executing hook script(s) of type ${hook_type}" 3
+        for hook_script in "${hook_dir}"/*; do
+            if [ -x "${hook_script}" ]; then
+                log_wrapper "executing ${hook_script}" 4
+                exec "${hook_script}"
+            fi
+        done
     fi
 }
 
@@ -137,21 +127,21 @@ action_wrapper() {
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" "${service_name}" > /dev/null; then
                 log_wrapper "command systemctl ${action_string} ${service_name} failed" 1
-                hook_wrapper "${failed_action_hook}"
+                hook_wrapper "${action_failed_hook}"
                 exit 1
             fi
         ;;
-        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+        "reboot"|"halt"|"poweroff"|"daemon-reexec"|"daemon-reload"|"sleep"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             log_wrapper "action is ${action_string}" 4
             hook_wrapper "${pre_action_hook}"
             if ! systemctl "${action_string}" > /dev/null; then
                 log_wrapper "command systemctl ${action_string} failed" 1
-                hook_wrapper "${failed_action_hook}"
+                hook_wrapper "${action_failed_hook}"
                 exit 1
             fi
         ;;
         "null")
-            log_wrapper "null action" 4
+            log_wrapper "performing null/dummy (skeleton) action" 4
             hook_wrapper "${pre_action_hook}"
         ;;
         *)
