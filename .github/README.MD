@@ -36,11 +36,11 @@ The basename and file extension will dictate the service to monitor and the func
 
 1. Create the directory `throwawaydeadd` and its symbolic links will live:
 
-   `mkdir /etc/scripts`
+   `mkdir /etc/throwawaydeadd`
 
 2. Navigate to that directory:
 
-   `cd /etc/scripts`
+   `cd /etc/throwawaydeadd`
 
 3. Download the `throwawaydeadd` script using `wget`:
 
@@ -52,9 +52,9 @@ The basename and file extension will dictate the service to monitor and the func
 
 5. Create link(s):
 
-   `ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.check`
+   `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.check`
 
-   `ln -s /etc/scripts/throwawaydeadd /etc/scripts/Example-Service.notify`
+   `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.notify`
 
 ### Configure throwawaydeadd
 
@@ -63,7 +63,7 @@ To indicate that they should function as a MASTER server rather than a BACKUP se
 Example:
 
 ```
-touch /etc/scripts/.is_master_server
+touch /etc/throwawaydeadd/.is_master_server
 ```
 
 If desired, create and populate the directory structure from which pre, post and failed service action hook scripts will be run from.
@@ -88,15 +88,21 @@ mkdir -p ./hooks/action_failed
 
 Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".
 
-External configuration may be supplied via a configuration file in the `/etc/scripts/` directory, with the same name as the service being monitored.
+External configuration may be supplied via a configuration file in the script directory, with the same name as the service being monitored.
 
-- **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link, the default value is `false`.
+- **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link.
 
-- **LOG_DIR:** The directory in which the `throwawaydeadd` logs are kept, the default value is `/var/log/throwawaydeadd`.
+   The default value is `false`.
+
+- **LOG_DIR:** The directory in which the `throwawaydeadd` logs are kept.
+
+   The default value is `/var/log/throwawaydeadd`.
 
 - **EXPECTED_SERVICE_STATE:** The expected service state for check operations.
 
-   If a service is found to be in a state other than the expected state then the check will fail, the default value is `active`.
+   If a service is found to be in a state other than the expected state then the check will fail.
+
+   The default value is `active`.
 
 - **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
 
@@ -104,9 +110,11 @@ External configuration may be supplied via a configuration file in the `/etc/scr
    | :---: | :---: |
    | `0` | No logging. |
    | `1` | Errors. |
-   | `2` | Warnings. |
-   | `3` | Info messages. |
-   | `4` | Debug messages |
+   | `2` | +Warnings. |
+   | `3` | ++Info messages. |
+   | `4` | +++Debug messages |
+
+   The default value is `0`.
 
 - **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION Example-Service`:
 
@@ -152,11 +160,15 @@ External configuration may be supplied via a configuration file in the `/etc/scr
 
    Any other string is rejected and will result in an abort with `exit 1`.
 
-- **MAX_STATE_AGE:** The time elapsed (in seconds) before a service state derived from a state file should be considered fresh, the default value is `4` (FOUR) seconds.
+- **MAX_STATE_AGE:** The time elapsed (in seconds) before a service state derived from a state file should be considered fresh.
 
-- **STATE_DIR:** The directory in which `*.state` and `*.lock` files should be kept, the default value is `/var/log`.
+   The default value is `4` (FOUR) seconds.
 
-Example [/etc/scripts/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
+- **STATE_DIR:** The directory in which `*.state` and `*.lock` files should be kept.
+
+   The default value is `/var/log`.
+
+Example [/etc/throwawaydeadd/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
 
 ```
 IS_MASTER="false"
@@ -219,7 +231,7 @@ global_defs {
 }
 
 vrrp_script check_Example-Service {
-    script "/etc/scripts/Example-Service.check"
+    script "/etc/throwawaydeadd/Example-Service.check"
     interval 5
     weight -10
     timeout 4
@@ -247,7 +259,7 @@ vrrp_instance EXAMPLE_SERVICE {
     track_script {
         check_Example-Service
     }
-    notify /etc/scripts/Example-Service.notify
+    notify /etc/throwawaydeadd/Example-Service.notify
 }
 ```
 
@@ -264,7 +276,7 @@ global_defs {
 }
 
 vrrp_script check_Example-Service {
-    script "/etc/scripts/Example-Service.check"
+    script "/etc/throwawaydeadd/Example-Service.check"
     interval 5
     weight -10
     timeout 4
@@ -292,6 +304,6 @@ vrrp_instance EXAMPLE_SERVICE {
     track_script {
         check_Example-Service
     }
-    notify /etc/scripts/Example-Service.notify
+    notify /etc/throwawaydeadd/Example-Service.notify
 }
 ```
