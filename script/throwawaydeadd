@@ -41,7 +41,7 @@ lock_file="${script_dir}/${service_name}-${script_function}.lock"
 action_wrapper() {
     action_string="$1"
     case $action_string in
-        ""|"none")
+        "none")
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
@@ -70,9 +70,9 @@ if flock -n 9; then
         . "${config_file}"
     fi
     is_master="${IS_MASTER:-false}"
+    expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
     case $script_function in
         "check"|"CHECK")
-            expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
             if [ "${service_state}" = "${expected_service_state}" ]; then
                 exit 0
             else
