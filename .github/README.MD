@@ -14,15 +14,11 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 - **Check/Notify:** `throwawaydeadd` operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
 
-- **Notify Actions:** Optionally perform one of many `systemctl` actions depending on the current state of the service being monitored, up to/including (re)starting or stopping that service or even the host server itself.
+- **Notify Actions:** Optionally perform one of many `systemctl` actions depending on the current state of the service being monitored.
 
 - **Low Dependency:** Simple bash shell construction requires only `systemctl` and some basic built-ins.
 
 - **Configurable:** Optional external configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
-
-- **State/Lock Files:** The state file prevents state "flapping" or "ping-pong", lock file prevents multiple simultaneous executions of the same script or "timeout runaway" which can be typical in high run frequency scenarios.
-
-- **Extensible Hooks:** Optionally execute one or more scripts of your choice from specified directories prior to and/or conditional upon the success or failure of an `systemctl` action, the interpreter is parsed from the shebang if possible on a case by case basis or otherwise defaults to `bash`.
 
 ## [Check/Notify Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to throwawaydeadd keepalived check/notify script folder")
 
@@ -66,37 +62,11 @@ Example:
 touch /etc/throwawaydeadd/.is_master_server
 ```
 
-If desired, create and populate the directory structure from which pre, post and failed service action hook scripts will be run from.
-
-Those paths are `./hooks/pre_action`, `.hooks/post_action` and `.hooks/action_failed` for pre, post and failed action hooks respectively. If found to be executable, any scripts in those directories will be executed in alphanumeric order.
-
-Please note that post_action hooks will only be triggered if that action succeeds.
-
-Example:
-
-```
-mkdir -p ./hooks/pre_action
-```
-
-```
-mkdir -p ./hooks/post_action
-```
-
-```
-mkdir -p ./hooks/action_failed
-```
-
-Please note that this step is optional and only required if you wish to run one or more custom scripts prior to and/or after performing a service action other than null/"none".
-
 External configuration may be supplied via a configuration file in the script directory, with the same name as the service being monitored.
 
 - **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link.
 
    The default value is `false`.
-
-- **LOG_DIR:** The directory in which the `throwawaydeadd` logs are kept.
-
-   The default value is `/var/log/throwawaydeadd`.
 
 - **EXPECTED_SERVICE_STATE:** The expected service state for check operations.
 
@@ -104,19 +74,7 @@ External configuration may be supplied via a configuration file in the script di
 
    The default value is `active`.
 
-- **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
-
-   | Verbosity Level | Log Type |
-   | :---: | :---: |
-   | `0` | No logging. |
-   | `1` | Errors. |
-   | `2` | +Warnings. |
-   | `3` | ++Info messages. |
-   | `4` | +++Debug messages |
-
-   The default value is `0`.
-
-- **SERVER_IS_ROLE_SERVICE-STATE:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION Example-Service`:
+- **[$SERVER]_IS_[$ROLE]_[$SERVICE-STATE]:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION Example-Service`:
 
    | Action | Description |
    | :---: | :---: |
@@ -134,57 +92,21 @@ External configuration may be supplied via a configuration file in the script di
    | `try-restart` | Stop and then start one or more units specified on the command line if the units are running. This does nothing if units are not running. |
    | `try-reload-or-restart` | Reload one or more units if they support it. If not, stop and then start them instead. This does nothing if the units are not running. |
 
-   ONE (1) of the following actions performed in the form of `systemctl $ACTION`:
-
-   | Action | Description |
-   | :---: | :---: |
-   | `reboot` | Shut down and reboot the system. |
-   | `halt` | Shut down and halt the system. This is mostly equivalent to systemctl start halt.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the halt operation is enqueued, without waiting for it to complete. Note that this operation will simply halt the OS kernel after shutting down, leaving the hardware powered on. Use systemctl poweroff for powering off the system (see below). |
-   | `poweroff` | Shut down and power-off the system. This is mostly equivalent to systemctl start poweroff.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the power-off operation is enqueued, without waiting for it to complete. |
-   | `daemon-reexec` | Reexecute the systemd manager. This will serialize the manager state, reexecute the process and deserialize the state again. This command is of little use except for debugging and package upgrades. Sometimes, it might be helpful as a heavy-weight daemon-reload. While the daemon is being reexecuted, all sockets systemd listening on behalf of user configuration will stay accessible. |
-   | `daemon-reload` | Reload the systemd manager configuration. This will rerun all generators (see systemd.generator(7)), reload all unit files, and recreate the entire dependency tree. While the daemon is being reloaded, all sockets systemd listens on behalf of user configuration will stay accessible. |
-   | `sleep` | Put the system to sleep, through suspend, hibernate, hybrid-sleep, or suspend-then-hibernate. The sleep operation to use is automatically selected by systemd-logind.service(8). By default, suspend-then-hibernate is used, and falls back to suspend and then hibernate if not supported. Refer to SleepOperation= setting in logind.conf(5) for more details. This command is asynchronous, and will return after the sleep operation is successfully enqueued. It will not wait for the sleep/resume cycle to complete. |
-   | `suspend` | Suspend the system. This will trigger activation of the special target unit suspend.target. This command is asynchronous, and will return after the suspend operation is successfully enqueued. It will not wait for the suspend/resume cycle to complete. |
-   | `hibernate` | Hibernate the system. This will trigger activation of the special target unit hibernate.target. This command is asynchronous, and will return after the hibernation operation is successfully enqueued. It will not wait for the hibernate/thaw cycle to complete. |
-   | `suspend-then-hibernate` | Suspend the system and hibernate it after the delay specified in systemd-sleep.conf. This will trigger activation of the special target unit suspend-then-hibernate.target. This command is asynchronous, and will return after the hybrid sleep operation is successfully enqueued. It will not wait for the sleep/wake-up or hibernate/thaw cycle to complete. |
-   | `hybrid-sleep` | Hibernate and suspend the system. This will trigger activation of the special target unit hybrid-sleep.target. This command is asynchronous, and will return after the hybrid sleep operation is successfully enqueued. It will not wait for the sleep/wake-up cycle to complete. |
-
    Or ONE (1) of the following options:
 
    | Action | Description |
    | :---: | :---: |
-   | `none` | No action is performed, no hooks are executed. |
-   | `null` | A "null"/dummy (skeleton) action is performed, with any `pre_action` and/or `post_action` hook(s) executed as normal. |
+   | `none` | No action is performed. |
 
    Note that not all options may be possible on all host servers.
 
    Any other string is rejected and will result in an abort with `exit 1`.
 
-- **MAX_STATE_AGE:** The time elapsed (in seconds) before a service state derived from a state file should be considered fresh.
-
-   The default value is `4` (FOUR) seconds.
-
-- **STATE_DIR:** The directory in which `*.state` and `*.lock` files should be kept.
-
-   The default value is `/var/log`.
-
 Example [/etc/throwawaydeadd/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
 
 ```
 IS_MASTER="false"
-LOG_DIR="/var/log/throwawaydeadd"
-LOG_VERBOSITY="0"
 EXPECTED_SERVICE_STATE="active"
-MASTER_IS_BACKUP_ACTIVE="none"
-MASTER_IS_BACKUP_INACTIVE="start"
-MASTER_IS_BACKUP_FAILED="restart"
-MASTER_IS_BACKUP_DISABLED="enable"
-MASTER_IS_BACKUP_MASKED="none"
-BACKUP_IS_BACKUP_ACTIVE="none"
-BACKUP_IS_BACKUP_INACTIVE="start"
-BACKUP_IS_BACKUP_FAILED="restart"
-BACKUP_IS_BACKUP_DISABLED="enable"
-BACKUP_IS_BACKUP_MASKED="none"
 MASTER_IS_MASTER_ACTIVE="none"
 MASTER_IS_MASTER_INACTIVE="start"
 MASTER_IS_MASTER_FAILED="restart"
@@ -195,11 +117,16 @@ BACKUP_IS_MASTER_INACTIVE="start"
 BACKUP_IS_MASTER_FAILED="restart"
 BACKUP_IS_MASTER_DISABLED="enable"
 BACKUP_IS_MASTER_MASKED="none"
-PRE_ACTION_HOOK="pre_action"
-POST_ACTION_HOOK="post_action"
-ACTION_FAILED_HOOK="action_failed"
-MAX_STATE_AGE="4"
-STATE_DIR="/var/log"
+MASTER_IS_BACKUP_ACTIVE="none"
+MASTER_IS_BACKUP_INACTIVE="start"
+MASTER_IS_BACKUP_FAILED="restart"
+MASTER_IS_BACKUP_DISABLED="enable"
+MASTER_IS_BACKUP_MASKED="none"
+BACKUP_IS_BACKUP_ACTIVE="none"
+BACKUP_IS_BACKUP_INACTIVE="start"
+BACKUP_IS_BACKUP_FAILED="restart"
+BACKUP_IS_BACKUP_DISABLED="enable"
+BACKUP_IS_BACKUP_MASKED="none"
 ```
 
 ## [VRRP Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to keepalived VRRP config folder")

@@ -4,10 +4,34 @@
 
 # Author: saint-lascivious (Hayden Pearce) ©2023
 # License: GNU General Public License Version 3
+# Overview: A simple and highly flexible `keepalived` check and/or notify
+#           script particularly useful for managing failover scenarios in a
+#           high-availability environment.
+
+# The basename and file extension will dictate the service to monitor
+# and the function to perform respectively.
+#
+# The service name MUST be an exact match, and the extension MUST be one of
+# check, CHECK, notify or NOTIFY.
+#
+# Example:
+# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.check
+# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.notify
+#
+# To indicate that they should function primarily as a MASTER server rather
+# than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
+#
+# Example:
+# touch /etc/throwawaydeadd/.is_master_server
+
+vrrp_arguments=("$@")
+vrrp_type="${vrrp_arguments[0]}"
+vrrp_name="${vrrp_arguments[1]}"
+vrrp_state="${vrrp_arguments[2]}"
 
 script_name="$(basename "$0")"
 service_name="${script_name%.*}"
-script_dir="$(pwd)"
+script_dir="/etc/throwawaydeadd"
 script_function="${script_name##*.}"
 config_file="${script_dir}/${service_name}.conf"
 if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
@@ -15,19 +39,7 @@ if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     . "${config_file}"
 fi
 is_master="${IS_MASTER:-false}"
-log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
-log_verbosity="${LOG_VERBOSITY:-0}"
 expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
-master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
-master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
-backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
 master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
 master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
@@ -38,234 +50,115 @@ backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
 backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
 backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
 backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-max_state_age="${MAX_STATE_AGE:-4}"
-state_dir="${STATE_DIR:-/var/log}"
-pre_action_hook="${PRE_ACTION_HOOK:-pre_action}"
-post_action_hook="${POST_ACTION_HOOK:-post_action}"
-action_failed_hook="${ACTION_FAILED_HOOK:-action_failed}"
+master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
+master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
+master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
+backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
+backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
+backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
+
 master_flag_file="${script_dir}/.is_master_server"
-lock_file="${state_dir}/${service_name}-${script_function}.lock"
-state_file="${state_dir}/${service_name}.state"
+lock_file="${script_dir}/${service_name}-${script_function}.lock"
 
-log_directory_creation() {
-    local directory="$1"
-    log_wrapper "creating directory ${directory}" 4
-}
-
-log_wrapper() {
-    local message="$1"
-    local verbosity="$2"
-    if [ "${log_verbosity}" -ge "${verbosity}" ]; then
-        if [ ! -d "${log_dir}" ]; then
-            mkdir -p "${log_dir}" && log_directory_creation "${log_dir}"
-        fi
-        case "${verbosity}" in
-            "1")
-                log_type="ERROR: "
-            ;;
-            "2")
-                log_type="WARNING: "
-            ;;
-            "3")
-                log_type="INFO: "
-            ;;
-            "4")
-                log_type="DEBUG: "
-            ;;
-        esac
-        echo "[$(date +"%d-%m-%Y %H:%M:%S.%3N%:z %Z")] ${log_type}${message}" >> "${log_dir}/${service_name}.log"
-    fi
-}
-
-get_state() {
-    if ! command -v systemctl > /dev/null; then
-        log_wrapper "systemctl command not found" 1
-        exit 1
-    fi
-    local current_time
-    current_time="$(date +%s 2>/dev/null)"
-    local state_last_modified
-    state_last_modified="$(date -r "${state_file}" 2>/dev/null +%s)"
-    local state_age
-    state_age="$(("${current_time}" - "${state_last_modified}"))"
-    if [ -f "${state_file}" ] && [ "${state_age}" -le "${max_state_age}" ]; then
-        service_state="$(cat "${state_file}" 2>/dev/null)"
-    else
-        exec 8>"$state_file"
-        if flock -n 8; then
-            service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
-            echo "${service_state}" > "${state_file}"
-        else
-            log_wrapper "could not get lock for ${state_file}" 4
-        fi
-    fi
-}
-
-hook_wrapper() {
-    local hook_type="$1"
-    local hook_dir="./hooks/${hook_type}"
-    if [ -d "${hook_dir}" ] && [ -n "$(find "${hook_dir}" -maxdepth 1 -type f -executable)" ]; then
-        log_wrapper "executing hook script(s) of type ${hook_type}" 3
-        for hook_script in "${hook_dir}"/*; do
-            if [ -x "${hook_script}" ]; then
-                log_wrapper "executing ${hook_script}" 4
-                exec "${hook_script}"
-            fi
-        done
-    fi
-}
-
-action_wrapper() {
-    local action_string="$1"
-    case "${action_string}" in
-        "none")
-            log_wrapper "not performing an action" 4
-            exit 0
-        ;;
-        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
-            log_wrapper "action is ${action_string}" 4
-            hook_wrapper "${pre_action_hook}"
-            if ! systemctl "${action_string}" "${service_name}" > /dev/null; then
-                log_wrapper "command systemctl ${action_string} ${service_name} failed" 1
-                hook_wrapper "${action_failed_hook}"
-                exit 1
-            fi
-        ;;
-        "reboot"|"halt"|"poweroff"|"daemon-reexec"|"daemon-reload"|"sleep"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-            log_wrapper "action is ${action_string}" 4
-            hook_wrapper "${pre_action_hook}"
-            if ! systemctl "${action_string}" > /dev/null; then
-                log_wrapper "command systemctl ${action_string} failed" 1
-                hook_wrapper "${action_failed_hook}"
-                exit 1
-            fi
-        ;;
-        "null")
-            log_wrapper "performing null/dummy (skeleton) action" 4
-            hook_wrapper "${pre_action_hook}"
-        ;;
-        *)
-            log_wrapper "unrecognised action ${action_string}" 1
-            exit 1
-        ;;
-    esac
-    hook_wrapper "${post_action_hook}"
-    exit 0
-}
-
-exec 9>"$lock_file"
+exec 9>"${lock_file}"
 if flock -n 9; then
-    get_state
-    case "${script_function}" in
+    service_state="$(systemctl is-active "${service_name}")"
+    case $script_function in
         "check"|"CHECK")
-            if [ ! "${service_state}" = "${expected_service_state}" ]; then
-                log_wrapper "${service_name} is ${service_state}" 1
+            if [ "${service_state}" = "${expected_service_state}" ]; then
+                exit 0
+            else
                 exit 1
             fi
-            log_wrapper "check script ran successfully" 4
         ;;
         "notify"|"NOTIFY")
-            vrrp_state="$3"
-            if [ -f "${master_flag_file}" ]; then
+            if [ -f "$master_flag_file" ]; then
                 is_master="true"
-                log_wrapper "${master_flag_file} detected" 4
             fi
-            case "${vrrp_state}" in
-                "backup"|"BACKUP")
+            case $vrrp_state in
+                "MASTER"|"master")
                     if [ "${is_master}" = "true" ]; then
-                        log_wrapper "master switched to backup state" 2
-                        case "${service_state}" in
+                        case $service_state in
                             "active")
-                                action_wrapper "${master_is_backup_active}"
+                                systemctl "${master_is_master_active}" "${service_name}"
                             ;;
                             "inactive")
-                                action_wrapper "${master_is_backup_inactive}"
+                                systemctl "${master_is_master_inactive}" "${service_name}"
                             ;;
                             "failed")
-                                action_wrapper "${master_is_backup_failed}"
+                                systemctl "${master_is_master_failed}" "${service_name}"
                             ;;
                             "disabled")
-                                action_wrapper "${master_is_backup_disabled}"
+                                systemctl "${master_is_master_disabled}" "${service_name}"
                             ;;
                             "masked"|"masked-runtime")
-                                action_wrapper "${master_is_backup_masked}"
+                                systemctl "${master_is_master_masked}" "${service_name}"
                             ;;
                         esac
                     else
-                        log_wrapper "backup switched to backup state" 3
-                        case "${service_state}" in
+                        case $service_state in
                             "active")
-                                action_wrapper "${backup_is_backup_active}"
+                                systemctl "${backup_is_master_active}" "${service_name}"
                             ;;
                             "inactive")
-                                action_wrapper "${backup_is_backup_inactive}"
+                                systemctl "${backup_is_master_inactive}" "${service_name}"
                             ;;
                             "failed")
-                                action_wrapper "${backup_is_backup_failed}"
+                                systemctl "${backup_is_master_failed}" "${service_name}"
                             ;;
                             "disabled")
-                                action_wrapper "${backup_is_backup_disabled}"
+                                systemctl "${backup_is_master_disabled}" "${service_name}"
                             ;;
                             "masked"|"masked-runtime")
-                                action_wrapper "${backup_is_backup_masked}"
+                                systemctl "${backup_is_master_masked}" "${service_name}"
                             ;;
                         esac
                     fi
                 ;;
-                "master"|"MASTER")
+                "BACKUP"|"backup")
                     if [ "${is_master}" = "true" ]; then
-                        log_wrapper "master switched to master state" 3
-                        case "${service_state}" in
+                        case $service_state in
                             "active")
-                                action_wrapper "${master_is_master_active}"
+                                systemctl "${master_is_backup_active}" "${service_name}"
                             ;;
                             "inactive")
-                                action_wrapper "${master_is_master_inactive}"
+                                systemctl "${master_is_backup_inactive}" "${service_name}"
                             ;;
                             "failed")
-                                action_wrapper "${master_is_master_failed}"
+                                systemctl "${master_is_backup_failed}" "${service_name}"
                             ;;
                             "disabled")
-                                action_wrapper "${master_is_master_disabled}"
+                                systemctl "${master_is_backup_disabled}" "${service_name}"
                             ;;
                             "masked"|"masked-runtime")
-                                action_wrapper "${master_is_master_masked}"
+                                systemctl "${master_is_backup_masked}" "${service_name}"
                             ;;
                         esac
                     else
-                        log_wrapper "backup switched to master state" 2
-                        case "${service_state}" in
+                        case $service_state in
                             "active")
-                                action_wrapper "${backup_is_master_active}"
+                                systemctl "${backup_is_backup_active}" "${service_name}"
                             ;;
                             "inactive")
-                                action_wrapper "${backup_is_master_inactive}"
+                                systemctl "${backup_is_backup_inactive}" "${service_name}"
                             ;;
                             "failed")
-                                action_wrapper "${backup_is_master_failed}"
+                                systemctl "${backup_is_backup_failed}" "${service_name}"
                             ;;
                             "disabled")
-                                action_wrapper "${backup_is_master_disabled}"
+                                systemctl "${backup_is_backup_disabled}" "${service_name}"
                             ;;
                             "masked"|"masked-runtime")
-                                action_wrapper "${backup_is_master_masked}"
+                                systemctl "${backup_is_backup_masked}" "${service_name}"
                             ;;
                         esac
                     fi
                 ;;
             esac
-            log_wrapper "notify script ran successfully" 4
-        ;;
-        "")
-            log_wrapper "unable to determine script function" 1
-            exit 1
-        ;;
-        *)
-            log_wrapper "unrecognised script function ${script_function}" 1
-            exit 1
         ;;
     esac
-    exit 0
-else
-    log_wrapper "could not get lock for ${lock_file}" 4
 fi
