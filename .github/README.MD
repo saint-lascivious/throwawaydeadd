@@ -28,7 +28,7 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 All commands given are assumed to be run as `root` or equivalent (with `sudo`).
 
-All examples going forward will assume that the service to be monitored is named `Example-Service`.
+For ease of use with a real world sample all examples going forward will assume that the service to be monitored is Pi-Hole's service, named `pihole-FTL`.
 
 The basename and file extension will dictate the service to monitor and the function to perform respectively. The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`. It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
 
@@ -50,13 +50,13 @@ The basename and file extension will dictate the service to monitor and the func
 
 5. Create link(s):
 
-   `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.check`
+   `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.check`
 
-   `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.notify`
+   `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.notify`
 
 ### Configure throwawaydeadd
 
-To indicate that they should function as a MASTER server rather than a BACKUP server at a system/host rather than script/symbolic link level, MASTER server(s) MAY create a dotfile trigger in the same directory as the script or symbolic link.
+To indicate that they should function as a MASTER server rather than a BACKUP server at a system/host rather than script/symbolic link level, MASTER server(s) MAY create a dotfile trigger in the script directory.
 
 Example:
 
@@ -64,9 +64,9 @@ Example:
 touch /etc/throwawaydeadd/.is_master_server
 ```
 
-External configuration may be supplied via a configuration file in the script directory, with the same name as the service being monitored.
+External configuration may be supplied via a configuration file with the same name as the service being monitored, located within the script directory.
 
-- **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair or system wide via an `.is_master_server` dotfile trigger located within the same directory as the script or symbolic link.
+- **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair, or system wide via an `.is_master_server` dotfile trigger located within the script directory.
 
    The default value is `false`.
 
@@ -76,7 +76,7 @@ External configuration may be supplied via a configuration file in the script di
 
    The default value is `active`.
 
-- **[$SERVER]_IS_[$ROLE]_[$SERVICE-STATE]:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION Example-Service`:
+- **[$SERVER]_IS_[$ROLE]_[$SERVICE-STATE]:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION $SERVICE`:
 
    | Action | Description |
    | :---: | :---: |
@@ -119,7 +119,7 @@ External configuration may be supplied via a configuration file in the script di
 
    Any other string is rejected and will result in an abort with `exit 1`.
 
-Example [/etc/throwawaydeadd/Example-Service.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/Example-Service.conf "Link to example Example-Service.conf") shown here with default values:
+Example [/etc/throwawaydeadd/pihole-FTL.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/pihole-FTL.conf "Link to example pihole-FTL.conf") shown here with default values:
 
 ```
 IS_MASTER="false"
@@ -150,17 +150,15 @@ BACKUP_IS_BACKUP_MASKED="none"
 
 MASTER to BACKUP failover, with fast fall and slow rise.
 
-The following examples assume that the service to be monitored is `Example-Service`, that there is a MASTER running on `192.168.1.10` and a BACKUP running on `192.168.1.20`, and that the virtual router IP address is `192.168.1.99` on the `eth0` interface.
+The following examples assume that the service to be monitored is `pihole-FTL`, that there is a MASTER running on `192.168.1.10` and a BACKUP running on `192.168.1.20`, and that the virtual router IP address is `192.168.1.99` on the `eth0` interface.
 
 The example service is checked with an interval of `5` seconds, and a timeout of `4` seconds. The advertisement interval is `1` second. The priority of an instance will fall after `2` successive failures (`10` seconds), and only rise again after `12` successive successes (`60` seconds).
 
 The MASTER has a starting priority of `150`, and the BACKUP has a starting priority of `145`. The weight value is `-10`.
 
-The default shared password is `default`.
-
 The Virtual Router ID (`99`) reflecting the final digits of the Virtual IP Address (`192.168.1.99`) is strictly for convenience/memory association.
 
-Once again, any/all instances of `Example-Service`/`EXAMPLE_SERVICE` used in the examples should be replaced with the exact (case sensitive) service name to whose state you wish to attach your virtual IP address.
+Once again, any/all instances of `pihole-FTL` used in the examples should be replaced with the exact (case sensitive) service name to whose state you wish to attach your virtual IP address.
 
 ### [MASTER](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to MASTER keepalived VRRP config folder")
 
@@ -168,14 +166,13 @@ Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/thr
 
 ```
 global_defs {
-    enable_script_security
     max_auto_priority 99
     router_id MASTER
     script_user root
 }
 
-vrrp_script check_Example-Service {
-    script "/etc/throwawaydeadd/Example-Service.check"
+vrrp_script check_pihole-FTL {
+    script "/etc/throwawaydeadd/pihole-FTL.check"
     interval 5
     weight -10
     timeout 4
@@ -183,7 +180,7 @@ vrrp_script check_Example-Service {
     fall 2
 }
 
-vrrp_instance EXAMPLE_SERVICE {
+vrrp_instance pihole-FTL {
     state MASTER
     interface eth0
     virtual_router_id 99
@@ -193,17 +190,13 @@ vrrp_instance EXAMPLE_SERVICE {
     unicast_peer {
         192.168.1.20
     }
-    authentication {
-        auth_type PASS
-        auth_pass default
-    }
     virtual_ipaddress {
         192.168.1.99/24
     }
     track_script {
-        check_Example-Service
+        check_pihole-FTL
     }
-    notify /etc/throwawaydeadd/Example-Service.notify
+    notify /etc/throwawaydeadd/pihole-FTL.notify
 }
 ```
 
@@ -213,14 +206,13 @@ Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/thr
 
 ```
 global_defs {
-    enable_script_security
     max_auto_priority 99
     router_id BACKUP
     script_user root
 }
 
-vrrp_script check_Example-Service {
-    script "/etc/throwawaydeadd/Example-Service.check"
+vrrp_script check_pihole-FTL {
+    script "/etc/throwawaydeadd/pihole-FTL.check"
     interval 5
     weight -10
     timeout 4
@@ -228,7 +220,7 @@ vrrp_script check_Example-Service {
     fall 2
 }
 
-vrrp_instance EXAMPLE_SERVICE {
+vrrp_instance pihole-FTL {
     state BACKUP
     interface eth0
     virtual_router_id 99
@@ -238,16 +230,12 @@ vrrp_instance EXAMPLE_SERVICE {
     unicast_peer {
         192.168.1.10
     }
-    authentication {
-        auth_type PASS
-        auth_pass default
-    }
     virtual_ipaddress {
         192.168.1.99/24
     }
     track_script {
-        check_Example-Service
+        check_pihole-FTL
     }
-    notify /etc/throwawaydeadd/Example-Service.notify
+    notify /etc/throwawaydeadd/pihole-FTL.notify
 }
 ```
