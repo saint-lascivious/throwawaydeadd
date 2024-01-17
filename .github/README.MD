@@ -10,11 +10,13 @@ A simple and highly flexible `keepalived` check and/or notify script particularl
 
 ## Features
 
-- **Simplicity:** Monitor (and optionally take action on) a service as easily as renaming a file or creating a symbolic link.
+- **Light Weight:** Principle of least operation. Get in, do work, get out.
 
-- **Check/Notify:** `throwawaydeadd` operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
+- **Simple:** Monitor (and optionally take action on) a service as easily as renaming a file or creating a symbolic link.
 
-- **Notify Actions:** Optionally perform one of many `systemctl` actions depending on the current state of the service being monitored.
+- **Check & Notify:** `throwawaydeadd` operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
+
+- **Actions:** Perform one of many `systemctl` actions on the service or host based on the current state of the service being monitored.
 
 - **Low Dependency:** Simple bash shell construction requires only `systemctl` and some basic built-ins.
 
@@ -91,6 +93,21 @@ External configuration may be supplied via a configuration file in the script di
    | `reset-failed` | Reset the "failed" state of the specified units, or if no unit name is passed, reset the state of all units. When a unit fails in some way (i.e. process exiting with non-zero error code, terminating abnormally or timing out), it will automatically enter the "failed" state and its exit code and status is recorded for introspection by the administrator until the service is stopped/re-started or reset with this command. |
    | `try-restart` | Stop and then start one or more units specified on the command line if the units are running. This does nothing if units are not running. |
    | `try-reload-or-restart` | Reload one or more units if they support it. If not, stop and then start them instead. This does nothing if the units are not running. |
+
+   ONE (1) of the following actions performed in the form of `systemctl $ACTION`:
+
+   | Action | Description |
+   | :---: | :---: |
+   | `reboot` | Shut down and reboot the system. |
+   | `halt` | Shut down and halt the system. This is mostly equivalent to systemctl start halt.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the halt operation is enqueued, without waiting for it to complete. Note that this operation will simply halt the OS kernel after shutting down, leaving the hardware powered on. Use systemctl poweroff for powering off the system (see below). |
+   | `poweroff` | Shut down and power-off the system. This is mostly equivalent to systemctl start poweroff.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the power-off operation is enqueued, without waiting for it to complete. |
+   | `daemon-reexec` | Reexecute the systemd manager. This will serialize the manager state, reexecute the process and deserialize the state again. This command is of little use except for debugging and package upgrades. Sometimes, it might be helpful as a heavy-weight daemon-reload. While the daemon is being reexecuted, all sockets systemd listening on behalf of user configuration will stay accessible. |
+   | `daemon-reload` | Reload the systemd manager configuration. This will rerun all generators (see systemd.generator(7)), reload all unit files, and recreate the entire dependency tree. While the daemon is being reloaded, all sockets systemd listens on behalf of user configuration will stay accessible. |
+   | `sleep` | Put the system to sleep, through suspend, hibernate, hybrid-sleep, or suspend-then-hibernate. The sleep operation to use is automatically selected by systemd-logind.service(8). By default, suspend-then-hibernate is used, and falls back to suspend and then hibernate if not supported. Refer to SleepOperation= setting in logind.conf(5) for more details. This command is asynchronous, and will return after the sleep operation is successfully enqueued. It will not wait for the sleep/resume cycle to complete. |
+   | `suspend` | Suspend the system. This will trigger activation of the special target unit suspend.target. This command is asynchronous, and will return after the suspend operation is successfully enqueued. It will not wait for the suspend/resume cycle to complete. |
+   | `hibernate` | Hibernate the system. This will trigger activation of the special target unit hibernate.target. This command is asynchronous, and will return after the hibernation operation is successfully enqueued. It will not wait for the hibernate/thaw cycle to complete. |
+   | `suspend-then-hibernate` | Suspend the system and hibernate it after the delay specified in systemd-sleep.conf. This will trigger activation of the special target unit suspend-then-hibernate.target. This command is asynchronous, and will return after the hybrid sleep operation is successfully enqueued. It will not wait for the sleep/wake-up or hibernate/thaw cycle to complete. |
+   | `hybrid-sleep` | Hibernate and suspend the system. This will trigger activation of the special target unit hybrid-sleep.target. This command is asynchronous, and will return after the hybrid sleep operation is successfully enqueued. It will not wait for the sleep/wake-up cycle to complete. |
 
    Or ONE (1) of the following options:
 

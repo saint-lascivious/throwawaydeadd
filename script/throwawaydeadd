@@ -24,51 +24,55 @@
 # Example:
 # touch /etc/throwawaydeadd/.is_master_server
 
-vrrp_arguments=("$@")
-vrrp_type="${vrrp_arguments[0]}"
-vrrp_name="${vrrp_arguments[1]}"
-vrrp_state="${vrrp_arguments[2]}"
+vrrp_arguments=("$@")               # VRRP arguments
+# shellcheck disable=SC2034
+vrrp_type="${vrrp_arguments[0]}"    # VRRP type GROUP or INSTANCE
+# shellcheck disable=SC2034
+vrrp_name="${vrrp_arguments[1]}"    # VRRP name
+vrrp_state="${vrrp_arguments[2]}"   # VRRP state MASTER, BACKUP or FAULT
 
 script_name="$(basename "$0")"
 service_name="${script_name%.*}"
 script_dir="/etc/throwawaydeadd"
 script_function="${script_name##*.}"
-config_file="${script_dir}/${service_name}.conf"
-if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
-    # shellcheck source=/dev/null
-    . "${config_file}"
-fi
-is_master="${IS_MASTER:-false}"
-expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
-master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
-master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
-master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
-master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
-backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
-backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
-backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
-backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
-master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
-backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
-
 master_flag_file="${script_dir}/.is_master_server"
 lock_file="${script_dir}/${service_name}-${script_function}.lock"
 
+action_wrapper() {
+    action_string="$1"
+    case $action_string in
+        ""|"none")
+            exit 0
+        ;;
+        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+            systemctl "${action_string}" "${service_name}"
+        ;;
+        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+            systemctl "${action_string}"
+        ;;
+        *)
+            exit 1
+        ;;
+    esac
+    exit 0
+}
+
 exec 9>"${lock_file}"
 if flock -n 9; then
-    service_state="$(systemctl is-active "${service_name}")"
+    if command -v systemctl; then
+        service_state="$(systemctl is-active "${service_name}")"
+    else
+        exit 1
+    fi
+    config_file="${script_dir}/${service_name}.conf"
+    if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
+        # shellcheck source=/dev/null
+        . "${config_file}"
+    fi
+    is_master="${IS_MASTER:-false}"
     case $script_function in
         "check"|"CHECK")
+            expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
             if [ "${service_state}" = "${expected_service_state}" ]; then
                 exit 0
             else
@@ -76,6 +80,26 @@ if flock -n 9; then
             fi
         ;;
         "notify"|"NOTIFY")
+            master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
+            master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+            master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
+            master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
+            master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
+            backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
+            backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+            backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
+            backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
+            backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
+            master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
+            master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+            master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+            master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
+            master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
+            backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
+            backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+            backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+            backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
+            backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
             if [ -f "$master_flag_file" ]; then
                 is_master="true"
             fi
@@ -84,37 +108,37 @@ if flock -n 9; then
                     if [ "${is_master}" = "true" ]; then
                         case $service_state in
                             "active")
-                                systemctl "${master_is_master_active}" "${service_name}"
+                                action_wrapper "${master_is_master_active}"
                             ;;
                             "inactive")
-                                systemctl "${master_is_master_inactive}" "${service_name}"
+                                action_wrapper "${master_is_master_inactive}"
                             ;;
                             "failed")
-                                systemctl "${master_is_master_failed}" "${service_name}"
+                                action_wrapper "${master_is_master_failed}"
                             ;;
                             "disabled")
-                                systemctl "${master_is_master_disabled}" "${service_name}"
+                                action_wrapper "${master_is_master_disabled}"
                             ;;
                             "masked"|"masked-runtime")
-                                systemctl "${master_is_master_masked}" "${service_name}"
+                                action_wrapper "${master_is_master_masked}"
                             ;;
                         esac
                     else
                         case $service_state in
                             "active")
-                                systemctl "${backup_is_master_active}" "${service_name}"
+                                action_wrapper "${backup_is_master_active}"
                             ;;
                             "inactive")
-                                systemctl "${backup_is_master_inactive}" "${service_name}"
+                                action_wrapper "${backup_is_master_inactive}"
                             ;;
                             "failed")
-                                systemctl "${backup_is_master_failed}" "${service_name}"
+                                action_wrapper "${backup_is_master_failed}"
                             ;;
                             "disabled")
-                                systemctl "${backup_is_master_disabled}" "${service_name}"
+                                action_wrapper "${backup_is_master_disabled}"
                             ;;
                             "masked"|"masked-runtime")
-                                systemctl "${backup_is_master_masked}" "${service_name}"
+                                action_wrapper "${backup_is_master_masked}"
                             ;;
                         esac
                     fi
@@ -123,37 +147,37 @@ if flock -n 9; then
                     if [ "${is_master}" = "true" ]; then
                         case $service_state in
                             "active")
-                                systemctl "${master_is_backup_active}" "${service_name}"
+                                action_wrapper "${master_is_backup_active}"
                             ;;
                             "inactive")
-                                systemctl "${master_is_backup_inactive}" "${service_name}"
+                                action_wrapper "${master_is_backup_inactive}"
                             ;;
                             "failed")
-                                systemctl "${master_is_backup_failed}" "${service_name}"
+                                action_wrapper "${master_is_backup_failed}"
                             ;;
                             "disabled")
-                                systemctl "${master_is_backup_disabled}" "${service_name}"
+                                action_wrapper "${master_is_backup_disabled}"
                             ;;
                             "masked"|"masked-runtime")
-                                systemctl "${master_is_backup_masked}" "${service_name}"
+                                action_wrapper "${master_is_backup_masked}"
                             ;;
                         esac
                     else
                         case $service_state in
                             "active")
-                                systemctl "${backup_is_backup_active}" "${service_name}"
+                                action_wrapper "${backup_is_backup_active}"
                             ;;
                             "inactive")
-                                systemctl "${backup_is_backup_inactive}" "${service_name}"
+                                action_wrapper "${backup_is_backup_inactive}"
                             ;;
                             "failed")
-                                systemctl "${backup_is_backup_failed}" "${service_name}"
+                                action_wrapper "${backup_is_backup_failed}"
                             ;;
                             "disabled")
-                                systemctl "${backup_is_backup_disabled}" "${service_name}"
+                                action_wrapper "${backup_is_backup_disabled}"
                             ;;
                             "masked"|"masked-runtime")
-                                systemctl "${backup_is_backup_masked}" "${service_name}"
+                                action_wrapper "${backup_is_backup_masked}"
                             ;;
                         esac
                     fi
