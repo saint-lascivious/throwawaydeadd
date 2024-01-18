@@ -24,6 +24,8 @@
 # Example:
 # touch /etc/throwawaydeadd/.is_master_server
 
+trap "exec 9>&-" EXIT               # Trap to close file descriptor on exit
+
 vrrp_arguments=("$@")               # VRRP arguments
 # shellcheck disable=SC2034
 vrrp_type="${vrrp_arguments[0]}"    # VRRP type GROUP or INSTANCE
@@ -37,6 +39,17 @@ script_dir="/etc/throwawaydeadd"
 script_function="${script_name##*.}"
 master_flag_file="${script_dir}/.is_master_server"
 lock_file="${script_dir}/${service_name}-${script_function}.lock"
+log_dir="/var/log/throwawaydeadd"
+
+log_wrapper() {
+    log_message="$1"
+    timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S%:z")"
+    echo "${timestamp} ${log_message}" >> "${log_dir}/${service_name}.log"
+}
+
+systemctl_wrapper() {
+    systemctl "$1" "$2"
+}
 
 action_wrapper() {
     action_string="$1"
@@ -45,12 +58,13 @@ action_wrapper() {
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
-            systemctl "${action_string}" "${service_name}"
+            systemctl_wrapper "${action_string}" "${service_name}"
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-            systemctl "${action_string}"
+            systemctl_wrapper "${action_string}"
         ;;
         *)
+            log_wrapper "ERROR: unknown action"
             exit 1
         ;;
     esac
@@ -59,9 +73,13 @@ action_wrapper() {
 
 exec 9>"${lock_file}"
 if flock -n 9; then
+    if [ ! -d "${log_dir}" ]; then
+        mkdir -p "${log_dir}"
+    fi
     if command -v systemctl; then
         service_state="$(systemctl is-active "${service_name}")"
     else
+        log_wrapper "ERROR: systemctl not found"
         exit 1
     fi
     config_file="${script_dir}/${service_name}.conf"
@@ -76,6 +94,7 @@ if flock -n 9; then
             if [ "${service_state}" = "${expected_service_state}" ]; then
                 exit 0
             else
+                log_wrapper "ERROR: unexpected service state - ${service_state}"
                 exit 1
             fi
         ;;
@@ -106,6 +125,7 @@ if flock -n 9; then
             case $vrrp_state in
                 "MASTER"|"master")
                     if [ "${is_master}" = "true" ]; then
+                        log_wrapper "INFO: MASTER in MASTER state"
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_master_active}"
@@ -124,6 +144,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
+                        log_wrapper "WARNING: BACKUP in MASTER state"
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
@@ -145,6 +166,7 @@ if flock -n 9; then
                 ;;
                 "BACKUP"|"backup")
                     if [ "${is_master}" = "true" ]; then
+                        log_wrapper "WARNING: MASTER in BACKUP state"
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
@@ -163,6 +185,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
+                        log_wrapper "INFO: BACKUP in BACKUP state"
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
