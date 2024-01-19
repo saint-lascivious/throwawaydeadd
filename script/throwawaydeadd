@@ -4,6 +4,7 @@
 
 # Author: saint-lascivious (Hayden Pearce) ©2023
 # License: GNU General Public License Version 3
+
 # Overview: A simple and highly flexible `keepalived` check and/or notify
 #           script particularly useful for managing failover scenarios in a
 #           high-availability environment.
@@ -15,8 +16,8 @@
 # check, CHECK, notify or NOTIFY.
 #
 # Example:
-# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.check
-# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/Example-Service.notify
+# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.check
+# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.notify
 #
 # To indicate that they should function primarily as a MASTER server rather
 # than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
@@ -27,9 +28,7 @@
 trap "exec 9>&-" EXIT               # Trap to close file descriptor on exit
 
 vrrp_arguments=("$@")               # VRRP arguments
-# shellcheck disable=SC2034
 vrrp_type="${vrrp_arguments[0]}"    # VRRP type GROUP or INSTANCE
-# shellcheck disable=SC2034
 vrrp_name="${vrrp_arguments[1]}"    # VRRP name
 vrrp_state="${vrrp_arguments[2]}"   # VRRP state MASTER, BACKUP or FAULT
 
@@ -42,7 +41,7 @@ lock_file="${script_dir}/${service_name}-${script_function}.lock"
 log_dir="/var/log/throwawaydeadd"
 
 config_file="${script_dir}/${service_name}.conf"
-if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
+if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
     # shellcheck source=/dev/null
     . "${config_file}"
 fi
@@ -74,9 +73,9 @@ backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 log_wrapper() {
     message="$1"
     verbosity="$2"
-    if [ "${log_verbosity}" -ge "${verbosity}" ]; then
+    if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
         timestamp="$(date --rfc-3339 seconds)"
-        if [ ! -d "${log_dir}" ]; then
+        if [[ ! -d "${log_dir}" ]]; then
             mkdir -p "${log_dir}"
         fi
         case $verbosity in
@@ -121,7 +120,7 @@ action_wrapper() {
 
 exec 9>"${lock_file}"
 if flock -n 9; then
-    if [ ! -d "${log_dir}" ]; then
+    if [[ ! -d "${log_dir}" ]]; then
         mkdir -p "${log_dir}"
     fi
     if command -v systemctl; then
@@ -133,7 +132,7 @@ if flock -n 9; then
     case $script_function in
         "check"|"CHECK")
             log_wrapper "started check action" "3"
-            if [ "${service_state}" = "${expected_service_state}" ]; then
+            if [[ "${service_state}" = "${expected_service_state}" ]]; then
                 log_wrapper "expected service state ${service_state}" "4"
             else
                 log_wrapper "unexpected service state ${service_state}" "1"
@@ -142,13 +141,13 @@ if flock -n 9; then
         ;;
         "notify"|"NOTIFY")
             log_wrapper "started notify action" "3"
-            if [ -f "${master_flag_file}" ]; then
+            if [[ -f "${master_flag_file}" ]]; then
                 log_wrapper "this is a dedicated MASTER server" "4"
                 is_master="true"
             fi
             case $vrrp_state in
                 "MASTER"|"master")
-                    if [ "${is_master}" = "true" ]; then
+                    if [[ "${is_master}" = "true" ]]; then
                         log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
                         case $service_state in
                             "active")
@@ -189,7 +188,7 @@ if flock -n 9; then
                     fi
                 ;;
                 "BACKUP"|"backup")
-                    if [ "${is_master}" = "true" ]; then
+                    if [[ "${is_master}" = "true" ]]; then
                         log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
                         case $service_state in
                             "active")
