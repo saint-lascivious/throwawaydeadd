@@ -70,13 +70,35 @@ External configuration may be supplied via a configuration file with the same na
 
    The default value is `false`.
 
+- **LOG_DIR:** The directory in which `throwawaydeadd` log files are kept.
+
+   The default value is `/var/log/throwawaydeadd`.
+
+- **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
+
+   | Verbosity Level | Log Type |
+   | :---: | :---: |
+   | `0` | No logging. |
+   | `1` | Errors. |
+   | `2` | Warnings. |
+   | `3` | Info messages. |
+   | `4` | Debug messages |
+
+   The default value is `0` (zero).
+
 - **EXPECTED_SERVICE_STATE:** The expected service state for check operations.
 
    If a service is found to be in a state other than the expected state then the check will fail.
 
    The default value is `active`.
 
-- **[$SERVER]_IS_[$ROLE]_[$SERVICE-STATE]:** May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION $SERVICE`:
+- **[$SERVER]_IS_[$ROLE]_[$SERVICE-STATE]:** The action to perform, depending on the current service state, when the VRRP state changes from MASTER to BACKUP or vice versa.
+
+   The format for this variable is `MASTER` or `BACKUP` `_IS_` `MASTER` or `BACKUP` `_ACTIVE`, `_INACTIVE`, `_FAILED`, `_DISABLED` or `_MASKED`.
+
+   See the example configuration file below for a full list of default values.
+
+   May be ONE (1) of the following actions to be performed on services in the form of `systemctl $ACTION $SERVICE`:
 
    | Action | Description |
    | :---: | :---: |
@@ -123,7 +145,12 @@ Example [/etc/throwawaydeadd/pihole-FTL.conf](https://raw.githubusercontent.com/
 
 ```
 IS_MASTER="false"
+
+LOG_DIR=/var/log/throwawaydeadd
+LOG_VERBOSITY=0
+
 EXPECTED_SERVICE_STATE="active"
+
 MASTER_IS_MASTER_ACTIVE="none"
 MASTER_IS_MASTER_INACTIVE="start"
 MASTER_IS_MASTER_FAILED="restart"
@@ -166,6 +193,7 @@ Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/thr
 
 ```
 global_defs {
+    enable_script_security
     max_auto_priority 99
     router_id MASTER
     script_user root
@@ -190,6 +218,10 @@ vrrp_instance pihole-FTL {
     unicast_peer {
         192.168.1.20
     }
+    authentication {
+        auth_type PASS
+        auth_pass default
+    }
     virtual_ipaddress {
         192.168.1.99/24
     }
@@ -206,6 +238,7 @@ Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/thr
 
 ```
 global_defs {
+    enable_script_security
     max_auto_priority 99
     router_id BACKUP
     script_user root
@@ -229,6 +262,10 @@ vrrp_instance pihole-FTL {
     unicast_src_ip 192.168.1.20
     unicast_peer {
         192.168.1.10
+    }
+    authentication {
+        auth_type PASS
+        auth_pass default
     }
     virtual_ipaddress {
         192.168.1.99/24

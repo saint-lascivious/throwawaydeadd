@@ -51,13 +51,82 @@ systemctl_wrapper() {
     systemctl "$1" "$2"
 }
 
+config_file="${script_dir}/${service_name}.conf"
+if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
+    # shellcheck source=/dev/null
+    . "${config_file}"
+fi
+is_master="${IS_MASTER:-false}"
+log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
+log_verbosity="${LOG_VERBOSITY:-0}"
+expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
+master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
+master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
+master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
+master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
+backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
+backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
+backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
+backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
+master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
+master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
+master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
+backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
+backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
+backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
+
+log_wrapper() {
+    message="$1"
+    verbosity="$2"
+    if [ "${log_verbosity}" -ge "${verbosity}" ]; then
+        timestamp="$(date --rfc-3339 seconds)"
+        if [ ! -d "${log_dir}" ]; then
+            mkdir -p "${log_dir}"
+        fi
+        case $verbosity in
+            "1")
+                log_type="ERROR"
+            ;;
+            "2")
+                log_type="WARNING"
+            ;;
+            "3")
+                log_type="INFO"
+            ;;
+            "4")
+                log_type="DEBUG"
+            ;;
+        esac
+        log_message="${timestamp} ${log_type}: ${message}"
+        echo -e "${log_message}" >> "${log_dir}/${service_name}.log"
+    fi
+}
+
 action_wrapper() {
     action_string="$1"
     case $action_string in
         "none")
+            log_wrapper "no action performed" "4"
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+<<<<<<< HEAD
+            log_wrapper "performing service level action ${action_string}" "3"
+            systemctl "${action_string}" "${service_name}"
+        ;;
+        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+            log_wrapper "performing host level action ${action_string}" "3"
+            systemctl "${action_string}"
+        ;;
+        *)
+            log_wrapper "unknown action ${action_string}" "1"
+=======
             systemctl_wrapper "${action_string}" "${service_name}"
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
@@ -65,6 +134,7 @@ action_wrapper() {
         ;;
         *)
             log_wrapper "ERROR: unknown action"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
             exit 1
         ;;
     esac
@@ -79,53 +149,42 @@ if flock -n 9; then
     if command -v systemctl; then
         service_state="$(systemctl is-active "${service_name}")"
     else
+<<<<<<< HEAD
+        log_wrapper "systemctl not found" "1"
+=======
         log_wrapper "ERROR: systemctl not found"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
         exit 1
     fi
-    config_file="${script_dir}/${service_name}.conf"
-    if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
-        # shellcheck source=/dev/null
-        . "${config_file}"
-    fi
-    is_master="${IS_MASTER:-false}"
-    expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
     case $script_function in
         "check"|"CHECK")
+            log_wrapper "started check action" "3"
             if [ "${service_state}" = "${expected_service_state}" ]; then
+                log_wrapper "expected service state ${service_state}" "4"
                 exit 0
             else
+<<<<<<< HEAD
+                log_wrapper "unexpected service state ${service_state}" "1"
+=======
                 log_wrapper "ERROR: unexpected service state - ${service_state}"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                 exit 1
             fi
         ;;
         "notify"|"NOTIFY")
-            master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-            master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
-            master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
-            master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
-            master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
-            backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-            backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
-            backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
-            backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
-            backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-            master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-            master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-            master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
-            master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-            master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-            backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-            backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-            backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
-            backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-            backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
+            log_wrapper "started notify action" "3"
             if [ -f "$master_flag_file" ]; then
+                log_wrapper "this is a dedicated MASTER server" "4"
                 is_master="true"
             fi
             case $vrrp_state in
                 "MASTER"|"master")
                     if [ "${is_master}" = "true" ]; then
+<<<<<<< HEAD
+                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
+=======
                         log_wrapper "INFO: MASTER in MASTER state"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_master_active}"
@@ -144,7 +203,11 @@ if flock -n 9; then
                             ;;
                         esac
                     else
+<<<<<<< HEAD
+                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
+=======
                         log_wrapper "WARNING: BACKUP in MASTER state"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
@@ -166,7 +229,11 @@ if flock -n 9; then
                 ;;
                 "BACKUP"|"backup")
                     if [ "${is_master}" = "true" ]; then
+<<<<<<< HEAD
+                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
+=======
                         log_wrapper "WARNING: MASTER in BACKUP state"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
@@ -185,7 +252,11 @@ if flock -n 9; then
                             ;;
                         esac
                     else
+<<<<<<< HEAD
+                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
+=======
                         log_wrapper "INFO: BACKUP in BACKUP state"
+>>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
