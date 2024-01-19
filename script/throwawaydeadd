@@ -41,16 +41,6 @@ master_flag_file="${script_dir}/.is_master_server"
 lock_file="${script_dir}/${service_name}-${script_function}.lock"
 log_dir="/var/log/throwawaydeadd"
 
-log_wrapper() {
-    log_message="$1"
-    timestamp="$(date -u +"%Y-%m-%dT%H:%M:%S%:z")"
-    echo "${timestamp} ${log_message}" >> "${log_dir}/${service_name}.log"
-}
-
-systemctl_wrapper() {
-    systemctl "$1" "$2"
-}
-
 config_file="${script_dir}/${service_name}.conf"
 if [ -f "${config_file}" ] && [ -r "${config_file}" ]; then
     # shellcheck source=/dev/null
@@ -116,7 +106,6 @@ action_wrapper() {
             exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
-<<<<<<< HEAD
             log_wrapper "performing service level action ${action_string}" "3"
             systemctl "${action_string}" "${service_name}"
         ;;
@@ -126,15 +115,6 @@ action_wrapper() {
         ;;
         *)
             log_wrapper "unknown action ${action_string}" "1"
-=======
-            systemctl_wrapper "${action_string}" "${service_name}"
-        ;;
-        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-            systemctl_wrapper "${action_string}"
-        ;;
-        *)
-            log_wrapper "ERROR: unknown action"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
             exit 1
         ;;
     esac
@@ -149,11 +129,7 @@ if flock -n 9; then
     if command -v systemctl; then
         service_state="$(systemctl is-active "${service_name}")"
     else
-<<<<<<< HEAD
         log_wrapper "systemctl not found" "1"
-=======
-        log_wrapper "ERROR: systemctl not found"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
         exit 1
     fi
     case $script_function in
@@ -163,11 +139,7 @@ if flock -n 9; then
                 log_wrapper "expected service state ${service_state}" "4"
                 exit 0
             else
-<<<<<<< HEAD
                 log_wrapper "unexpected service state ${service_state}" "1"
-=======
-                log_wrapper "ERROR: unexpected service state - ${service_state}"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                 exit 1
             fi
         ;;
@@ -180,11 +152,7 @@ if flock -n 9; then
             case $vrrp_state in
                 "MASTER"|"master")
                     if [ "${is_master}" = "true" ]; then
-<<<<<<< HEAD
                         log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
-=======
-                        log_wrapper "INFO: MASTER in MASTER state"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_master_active}"
@@ -203,11 +171,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-<<<<<<< HEAD
                         log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
-=======
-                        log_wrapper "WARNING: BACKUP in MASTER state"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
@@ -229,11 +193,7 @@ if flock -n 9; then
                 ;;
                 "BACKUP"|"backup")
                     if [ "${is_master}" = "true" ]; then
-<<<<<<< HEAD
                         log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
-=======
-                        log_wrapper "WARNING: MASTER in BACKUP state"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
@@ -252,11 +212,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-<<<<<<< HEAD
                         log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
-=======
-                        log_wrapper "INFO: BACKUP in BACKUP state"
->>>>>>> 834e3227af5c63c75c87c88cf00f571e0a93b9fd
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"
