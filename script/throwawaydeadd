@@ -103,7 +103,6 @@ action_wrapper() {
     case $action_string in
         "none")
             log_wrapper "no action performed" "4"
-            exit 0
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
@@ -118,7 +117,6 @@ action_wrapper() {
             exit 1
         ;;
     esac
-    exit 0
 }
 
 exec 9>"${lock_file}"
@@ -137,7 +135,6 @@ if flock -n 9; then
             log_wrapper "started check action" "3"
             if [ "${service_state}" = "${expected_service_state}" ]; then
                 log_wrapper "expected service state ${service_state}" "4"
-                exit 0
             else
                 log_wrapper "unexpected service state ${service_state}" "1"
                 exit 1
