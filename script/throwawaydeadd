@@ -142,7 +142,7 @@ if flock -n 9; then
         ;;
         "notify"|"NOTIFY")
             log_wrapper "started notify action" "3"
-            if [ -f "$master_flag_file" ]; then
+            if [ -f "${master_flag_file}" ]; then
                 log_wrapper "this is a dedicated MASTER server" "4"
                 is_master="true"
             fi

@@ -74,7 +74,7 @@ External configuration may be supplied via a configuration file with the same na
 
    The default value is `/var/log/throwawaydeadd`.
 
-- **LOG_VERBOSITY:** A numeric value from `0` (zero) to `4` (four), representing:
+- **LOG_VERBOSITY:** A numeric value from `0` (ZERO) to `4` (FOUR), representing:
 
    | Verbosity Level | Log Type |
    | :---: | :---: |
@@ -84,7 +84,7 @@ External configuration may be supplied via a configuration file with the same na
    | `3` | Info messages. |
    | `4` | Debug messages |
 
-   The default value is `0` (zero).
+   The default value is `0` (ZERO).
 
 - **EXPECTED_SERVICE_STATE:** The expected service state for check operations.
 
