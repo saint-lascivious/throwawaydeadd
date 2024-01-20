@@ -279,16 +279,16 @@ vrrp_instance pihole-FTL {
 
 ### Additional Features
 
-- **Flags:** The `throwawaydeadd` script may be executed with ONE (1) of the following flags.
+- **Command-line Options:** The `throwawaydeadd` script may be executed with ONE (1) of the following options.
 
    This functionality (ab)uses (what would normally be) the VRRP type variable passed to `keepalived` check and notify scripts.
 
    This script functionality will attempt to use `sudo` to elevate privileges if the user is not root.
 
-   | Flag | Description |
+   | Option | Description |
    | :---: | :---: |
-   | `--flush-locks` | Flush (delete) any/all `throwawaydeadd` lock files from the script directory. |
-   | `--flush-logs` | Flush any/all `throwawaydeadd` log files from the log directory. |
+   | `--flush-locks` | Flush (delete) any existing `throwawaydeadd` lock files from the script directory. |
+   | `--flush-logs` | Flush any existing `throwawaydeadd` log files from the log directory. |
 
 Example:
 

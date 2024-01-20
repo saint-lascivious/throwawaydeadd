@@ -100,7 +100,7 @@ log_wrapper() {
         esac
         log_message="${timestamp} ${log_type}: ${message}"
         log_file="${log_dir}/${service_name}-${script_function}.log"
-        echo -e "${log_message}" >> "${log_file}"
+        echo "${log_message}" >> "${log_file}"
     fi
 }
 
@@ -128,14 +128,16 @@ action_wrapper() {
 case $vrrp_type in
     "--flush-locks")
         check_user
-        for lock in "${script_dir}"/*-"${script_function}".lock; do
+        for lock in "${script_dir}"/*-"${script_function}.lock"; do
+            echo "${lock}"
             rm "${lock}"
         done
         exit 0
     ;;
     "--flush-logs")
         check_user
-        for log in "${log_dir}"/*-"${script_function}".log; do
+        for log in "${log_dir}"/*-"${script_function}.log"; do
+            echo "${log}"
             rm "${log}"
         done
         exit 0
@@ -150,7 +152,7 @@ if flock -n 9; then
     if command -v systemctl; then
         service_state="$(systemctl is-active "${service_name}")"
     else
-        log_wrapper "systemctl not found" "1"
+        log_wrapper "systemctl command not found" "1"
         exit 1
     fi
     case $script_function in
