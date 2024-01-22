@@ -43,12 +43,13 @@ log_dir="/var/log/throwawaydeadd"
 config_file="${script_dir}/${service_name}.conf"
 if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
     # shellcheck source=/dev/null
-    . "${config_file}"
+    source "${config_file}"
 fi
 is_master="${IS_MASTER:-false}"
 log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
 log_verbosity="${LOG_VERBOSITY:-0}"
-expected_service_state="${EXPECTED_SERVICE_STATE:-active}"
+expected_service_state_master="${EXPECTED_SERVICE_STATE_MASTER:-active}"
+expected_service_state_backup="${EXPECTED_SERVICE_STATE_BACKUP:-active}"
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
 master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
 master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
@@ -70,12 +71,6 @@ backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
 backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 
-check_user(){
-    if [[ ! "${EUID}" -eq 0 ]]; then
-        exec sudo bash "$0" "$@"
-    fi
-}
-
 log_wrapper() {
     message="$1"
     verbosity="$2"
@@ -86,19 +81,19 @@ log_wrapper() {
         fi
         case $verbosity in
             "1")
-                log_type="ERROR"
+                log_category="ERROR"
             ;;
             "2")
-                log_type="WARNING"
+                log_category="WARNING"
             ;;
             "3")
-                log_type="INFO"
+                log_category="INFO"
             ;;
             "4")
-                log_type="DEBUG"
+                log_category="DEBUG"
             ;;
         esac
-        log_message="${timestamp} ${log_type}: ${message}"
+        log_message="${timestamp} ${log_category}: ${message}"
         log_file="${log_dir}/${service_name}-${script_function}.log"
         echo "${log_message}" >> "${log_file}"
     fi
@@ -125,25 +120,6 @@ action_wrapper() {
     esac
 }
 
-case $vrrp_type in
-    "--flush-locks")
-        check_user
-        for lock in "${script_dir}"/*-"${script_function}.lock"; do
-            echo "${lock}"
-            rm "${lock}"
-        done
-        exit 0
-    ;;
-    "--flush-logs")
-        check_user
-        for log in "${log_dir}"/*-"${script_function}.log"; do
-            echo "${log}"
-            rm "${log}"
-        done
-        exit 0
-    ;;
-esac
-
 exec 9>"${lock_file}"
 if flock -n 9; then
     if [[ ! -d "${log_dir}" ]]; then
@@ -155,9 +131,18 @@ if flock -n 9; then
         log_wrapper "systemctl command not found" "1"
         exit 1
     fi
+    if [[ -f "${master_flag_file}" ]]; then
+        log_wrapper "this is a dedicated MASTER server" "4"
+        is_master="true"
+    fi
     case $script_function in
         "check"|"CHECK")
             log_wrapper "started check action" "4"
+            if [[ "${is_master}" = "true" ]]; then
+                expected_service_state="${expected_service_state_master}"
+            else
+                expected_service_state="${expected_service_state_backup}"
+            fi
             if [[ "${service_state}" = "${expected_service_state}" ]]; then
                 log_wrapper "expected service state ${service_state}" "3"
                 exit 0
@@ -168,10 +153,6 @@ if flock -n 9; then
         ;;
         "notify"|"NOTIFY")
             log_wrapper "started notify action" "4"
-            if [[ -f "${master_flag_file}" ]]; then
-                log_wrapper "this is a dedicated MASTER server" "4"
-                is_master="true"
-            fi
             case $vrrp_state in
                 "MASTER"|"master")
                     if [[ "${is_master}" = "true" ]]; then

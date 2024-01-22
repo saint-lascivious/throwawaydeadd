@@ -86,7 +86,9 @@ External configuration may be supplied via a configuration file with the same na
 
    The default value is `0` (ZERO).
 
-- **EXPECTED_SERVICE_STATE:** The expected service state for check operations.
+- **EXPECTED_SERVICE_STATE_[$ROLE]:** The expected service state for check operations on MASTER and BACKUP servers, which allows MASTER and BACKUP servers to expect to encounter different service states.
+
+   The format for this variable is `EXPECTED_SERVICE_STATE_`, `MASTER` or `BACKUP`.
 
    If a service is found to be in a state other than the expected state then the check will fail.
 
@@ -149,7 +151,8 @@ IS_MASTER="false"
 LOG_DIR=/var/log/throwawaydeadd
 LOG_VERBOSITY=0
 
-EXPECTED_SERVICE_STATE="active"
+EXPECTED_SERVICE_STATE_MASTER="active"
+EXPECTED_SERVICE_STATE_BACKUP="active"
 
 MASTER_IS_MASTER_ACTIVE="none"
 MASTER_IS_MASTER_INACTIVE="start"
@@ -275,27 +278,4 @@ vrrp_instance pihole-FTL {
     }
     notify /etc/throwawaydeadd/pihole-FTL.notify
 }
-```
-
-### Additional Features
-
-- **Command-line Options:** The `throwawaydeadd` script may be executed with ONE (1) of the following options.
-
-   This functionality (ab)uses (what would normally be) the VRRP type variable passed to `keepalived` check and notify scripts.
-
-   This script functionality will attempt to use `sudo` to elevate privileges if the user is not root.
-
-   | Option | Description |
-   | :---: | :---: |
-   | `--flush-locks` | Flush (delete) any existing `throwawaydeadd` lock files from the script directory. |
-   | `--flush-logs` | Flush any existing `throwawaydeadd` log files from the log directory. |
-
-Example:
-
-```
-./throwawaydeadd --flush-locks
-```
-
-```
-./throwawaydeadd --flush-logs
 ```
