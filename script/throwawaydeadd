@@ -2,10 +2,10 @@
 
 # throwawaydeadd
 
-# Author: saint-lascivious (Hayden Pearce) ©2023
+# Author: saint-lascivious (Hayden Pearce) ©2023~2024
 # License: GNU General Public License Version 3
 
-# Overview: A simple and highly flexible `keepalived` check and/or notify
+# Overview: A simple and highly flexible keepalived check and/or notify
 #           script particularly useful for managing failover scenarios in a
 #           high-availability environment.
 
@@ -15,6 +15,9 @@
 # The service name MUST be an exact match, and the extension MUST be one of
 # check, CHECK, notify or NOTIFY.
 #
+# It is not necessary (nor is it forbidden) to provide the `.service` section
+# of the service.
+
 # Example:
 # ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.check
 # ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.notify
@@ -48,6 +51,7 @@ fi
 is_master="${IS_MASTER:-false}"
 log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
 log_verbosity="${LOG_VERBOSITY:-0}"
+date_format="${DATE_FORMAT:-rfc3339}"
 expected_service_state_master="${EXPECTED_SERVICE_STATE_MASTER:-active}"
 expected_service_state_backup="${EXPECTED_SERVICE_STATE_BACKUP:-active}"
 master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
@@ -75,24 +79,37 @@ log_wrapper() {
     message="$1"
     verbosity="$2"
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
-        timestamp="$(date --rfc-3339 seconds)"
         if [[ ! -d "${log_dir}" ]]; then
             mkdir -p "${log_dir}"
         fi
-        case $verbosity in
-            "1")
-                log_category="ERROR"
+        case $date_format in
+            "rfc3339")
+                date_string="--rfc-3339=seconds"
             ;;
-            "2")
-                log_category="WARNING"
+            "iso8601")
+                date_string="--iso-8601=seconds"
             ;;
-            "3")
-                log_category="INFO"
+            "rfc5322")
+                date_string="--rfc-email"
             ;;
-            "4")
-                log_category="DEBUG"
+            "locale")
+                date_string="+%c"
+            ;;
+            "epoch")
+                date_string="+%s"
+            ;;
+            *)
+                date_string="--rfc-3339=seconds"
             ;;
         esac
+        timestamp="$(date ${date_string})"
+        declare -A log_categories=(
+            [1]="ERROR"
+            [2]="WARNING"
+            [3]="INFO"
+            [4]="DEBUG"
+        )
+        log_category="${log_categories[$verbosity]}"
         log_message="${timestamp} ${log_category}: ${message}"
         log_file="${log_dir}/${service_name}-${script_function}.log"
         echo "${log_message}" >> "${log_file}"
@@ -122,9 +139,6 @@ action_wrapper() {
 
 exec 9>"${lock_file}"
 if flock -n 9; then
-    if [[ ! -d "${log_dir}" ]]; then
-        mkdir -p "${log_dir}"
-    fi
     if command -v systemctl; then
         service_state="$(systemctl is-active "${service_name}")"
     else
@@ -153,10 +167,12 @@ if flock -n 9; then
         ;;
         "notify"|"NOTIFY")
             log_wrapper "started notify action" "4"
+            state_change_message="${vrrp_type} ${vrrp_name} now in \
+            ${vrrp_state} state"
             case $vrrp_state in
                 "MASTER"|"master")
                     if [[ "${is_master}" = "true" ]]; then
-                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
+                        log_wrapper "${state_change_message}" "3"
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_master_active}"
@@ -175,7 +191,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
+                        log_wrapper "${state_change_message}" "2"
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_master_active}"
@@ -197,7 +213,7 @@ if flock -n 9; then
                 ;;
                 "BACKUP"|"backup")
                     if [[ "${is_master}" = "true" ]]; then
-                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "2"
+                        log_wrapper "${state_change_message}" "2"
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_backup_active}"
@@ -216,7 +232,7 @@ if flock -n 9; then
                             ;;
                         esac
                     else
-                        log_wrapper "${vrrp_type} ${vrrp_name} now in ${vrrp_state} state" "3"
+                        log_wrapper "${state_change_message}" "3"
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_backup_active}"

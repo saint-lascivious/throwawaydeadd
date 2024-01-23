@@ -1,6 +1,6 @@
 # [throwawaydeadd](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd "Link to throwawaydeadd script")
 
-**Author:** saint-lascivious (Hayden Pearce) ©2023
+**Author:** saint-lascivious (Hayden Pearce) ©2023~2024
 
 **License:** GNU General Public License Version 3
 
@@ -30,7 +30,11 @@ All commands given are assumed to be run as `root` or equivalent (with `sudo`).
 
 For ease of use with a real world sample all examples going forward will assume that the service to be monitored is Pi-Hole's service, named `pihole-FTL`.
 
-The basename and file extension will dictate the service to monitor and the function to perform respectively. The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`. It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
+The basename and file extension will dictate the service to monitor and the function to perform respectively.
+
+The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`.
+
+It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
 
 1. Create the directory `throwawaydeadd` and its symbolic links will live:
 
@@ -85,6 +89,22 @@ External configuration may be supplied via a configuration file with the same na
    | `4` | Debug messages |
 
    The default value is `0` (ZERO).
+
+- **DATE_FORMAT:** The timestamp format used in `throwawaydeadd` logs.
+
+   May be ONE (1) of the following options:
+
+   | Option | Example |
+   | :---: | :---: |
+   | `rfc3339` | 2006-08-14 02:34:56-06:00 |
+   | `iso8601` | 2006-08-14T02:34:56-06:00 |
+   | `rfc5322` | Mon, 14 Aug 2006 02:34:56 -0600 |
+   | `locale` | Tue 14 Aug 2006 02:34:56 NZDT |
+   | `epoch` | 1705996640 |
+
+   Any other string will result in the default value being used instead.
+
+   The default value is `rfc3339` (RFC 3339).
 
 - **EXPECTED_SERVICE_STATE_[$ROLE]:** The expected service state for check operations on MASTER and BACKUP servers, which allows MASTER and BACKUP servers to expect to encounter different service states.
 
@@ -148,8 +168,9 @@ Example [/etc/throwawaydeadd/pihole-FTL.conf](https://raw.githubusercontent.com/
 ```
 IS_MASTER="false"
 
-LOG_DIR=/var/log/throwawaydeadd
-LOG_VERBOSITY=0
+LOG_DIR="/var/log/throwawaydeadd"
+LOG_VERBOSITY="0"
+DATE_FORMAT="rfc3339"
 
 EXPECTED_SERVICE_STATE_MASTER="active"
 EXPECTED_SERVICE_STATE_BACKUP="active"
