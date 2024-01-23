@@ -60,7 +60,7 @@ It is not necessary (nor is it forbidden) to provide the `.service` section of t
 
 ### Configure throwawaydeadd
 
-To indicate that they should function as a MASTER server rather than a BACKUP server at a system/host rather than script/symbolic link level, MASTER server(s) MAY create a dotfile trigger in the script directory.
+To indicate that it should function as a MASTER server rather than a BACKUP server at a system/host rather than script/symbolic link level, a MASTER server MAY create a trigger file named `.is_master_server` in the script directory.
 
 Example:
 
@@ -70,13 +70,15 @@ touch /etc/throwawaydeadd/.is_master_server
 
 External configuration may be supplied via a configuration file with the same name as the service being monitored, located within the script directory.
 
-- **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair, or system wide via an `.is_master_server` dotfile trigger located within the script directory.
+- **IS_MASTER:** May be set to `true` on a case by case basis via this KEY=VALUE pair, or system wide via an `.is_master_server` trigger file located within the script directory.
 
-   The default value is `false`.
+   Default: `false`.
 
 - **LOG_DIR:** The directory in which `throwawaydeadd` log files are kept.
 
-   The default value is `/var/log/throwawaydeadd`.
+   The LOG_VERBOSITY value must be `1` or greater to enable logging.
+
+   Default: `/var/log/throwawaydeadd`.
 
 - **LOG_VERBOSITY:** A numeric value from `0` (ZERO) to `4` (FOUR), representing:
 
@@ -88,9 +90,9 @@ External configuration may be supplied via a configuration file with the same na
    | `3` | Info messages. |
    | `4` | Debug messages |
 
-   The default value is `0` (ZERO).
+   Default: `0` (ZERO).
 
-- **DATE_FORMAT:** The timestamp format used in `throwawaydeadd` logs.
+- **DATE_FORMAT:** The date-time format yo be used in `throwawaydeadd` logs.
 
    May be ONE (1) of the following options:
 
@@ -99,20 +101,30 @@ External configuration may be supplied via a configuration file with the same na
    | `rfc3339` | 2006-08-14 02:34:56-06:00 |
    | `iso8601` | 2006-08-14T02:34:56-06:00 |
    | `rfc5322` | Mon, 14 Aug 2006 02:34:56 -0600 |
-   | `locale` | Tue 14 Aug 2006 02:34:56 NZDT |
+   | `locale` | Mon 14 Aug 2006 02:34:56 NZDT |
    | `epoch` | 1705996640 |
 
    Any other string will result in the default value being used instead.
 
-   The default value is `rfc3339` (RFC 3339).
+   Default: `rfc3339` (RFC 3339).
 
-- **EXPECTED_SERVICE_STATE_[$ROLE]:** The expected service state for check operations on MASTER and BACKUP servers, which allows MASTER and BACKUP servers to expect to encounter different service states.
+- **EXPECTED_SERVICE_STATE_[$ROLE]:** The expected service state for check operations on MASTER and BACKUP servers, which allows MASTER and BACKUP server checks to expect to encounter different service states.
 
    The format for this variable is `EXPECTED_SERVICE_STATE_`, `MASTER` or `BACKUP`.
 
    If a service is found to be in a state other than the expected state then the check will fail.
 
-   The default value is `active`.
+   May be ONE (1) of the following service states:
+
+   | Service State | Description |
+   | :---: | :---: |
+   | `active` | The service is active (started). |
+   | `inactive` | The service is inactive (stopped). |
+   | `failed` | The service has failed. |
+   | `disabled` | The service is disabled. |
+   | `masked`, `masked-runtime` | The service is masked. |
+
+   Default: `active`.
 
 - **[$SERVER]_IS_[$ROLE]_[$SERVICE-STATE]:** The action to perform, depending on the current service state, when the VRRP state changes from MASTER to BACKUP or vice versa.
 
@@ -162,6 +174,8 @@ External configuration may be supplied via a configuration file with the same na
    Note that not all options may be possible on all host servers.
 
    Any other string is rejected and will result in an abort with `exit 1`.
+
+   Default: see default config below.
 
 Example [/etc/throwawaydeadd/pihole-FTL.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/pihole-FTL.conf "Link to example pihole-FTL.conf") shown here with default values:
 
