@@ -120,7 +120,7 @@ action_wrapper() {
     action_string="$1"
     case $action_string in
         "none")
-            log_wrapper "no action performed" "4"
+            log_wrapper "performing no action" "4"
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
@@ -139,7 +139,7 @@ action_wrapper() {
 
 exec 9>"${lock_file}"
 if flock -n 9; then
-    if command -v systemctl; then
+    if command -v systemctl >/dev/null; then
         service_state="$(systemctl is-active "${service_name}")"
     else
         log_wrapper "systemctl command not found" "1"
@@ -149,9 +149,10 @@ if flock -n 9; then
         log_wrapper "this is a dedicated MASTER server" "4"
         is_master="true"
     fi
+    script_function_message="started ${script_function} action"
     case $script_function in
         "check"|"CHECK")
-            log_wrapper "started check action" "4"
+            log_wrapper "${script_function_message}" "4"
             if [[ "${is_master}" = "true" ]]; then
                 expected_service_state="${expected_service_state_master}"
             else
@@ -166,7 +167,7 @@ if flock -n 9; then
             fi
         ;;
         "notify"|"NOTIFY")
-            log_wrapper "started notify action" "4"
+            log_wrapper "${script_function_message}" "4"
             state_change_message="${vrrp_type} ${vrrp_name} now in \
             ${vrrp_state} state"
             case $vrrp_state in
