@@ -139,7 +139,7 @@ action_wrapper() {
 
 exec 9>"${lock_file}"
 if flock -n 9; then
-    if command -v systemctl >/dev/null; then
+    if command -v systemctl >/dev/null 2>&1; then
         service_state="$(systemctl is-active "${service_name}")"
     else
         log_wrapper "systemctl command not found" "1"
@@ -168,7 +168,7 @@ if flock -n 9; then
         ;;
         "notify"|"NOTIFY")
             log_wrapper "${script_function_message}" "4"
-            state_change_message="${vrrp_type} ${vrrp_name} now in \
+            state_change_message="${vrrp_type} ${vrrp_name} in \
             ${vrrp_state} state"
             case $vrrp_state in
                 "MASTER"|"master")
@@ -252,6 +252,9 @@ if flock -n 9; then
                             ;;
                         esac
                     fi
+                ;;
+                "FAILED"|"failed")
+                    log_wrapper "${state_change_message}" "1"
                 ;;
             esac
             exit 0
