@@ -6,23 +6,27 @@
 
 ## Overview
 
-A simple and highly flexible `keepalived` check and/or notify script particularly useful for managing failover scenarios in a high-availability environment.
+A simple and highly flexible `keepalived` check and/or notify script particularly useful for managing fail-over scenarios in a high-availability environment.
+
+The primary goal of `throwawaydeadd` is to make high availability, highly available.
 
 ## Features
 
-- **Light Weight:** Principle of least operation. Get in, do work, get out.
+- **Light Weight:** Principle of least operation.
+
+   Get in. Do work. Get out.
 
 - **Simple:** Monitor (and optionally take action on) a service as easily as renaming a file or creating a symbolic link.
 
-- **Check & Notify:** `throwawaydeadd` operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
+- **Check & Notify:** Operates as a `keepalived` check or notify script depending on the extension used for the script or symbolic link.
 
-- **Actions:** Perform one of many `systemctl` actions on the service or host based on the current state of the service being monitored.
+- **Actions:** Perform one of many `systemctl` actions on the service or host sever based on the current role of the host server and the current state of the service being monitored.
 
 - **Low Dependency:** Simple bash shell construction requires only `systemctl` and some basic built-ins.
 
-- **Configurable:** Optional external configuration can be provided from a file with the same name as the check and or notify script/symbolic link, located within the same working directory as the script or symbolic link.
+- **Configurable:** Optional external configuration can be provided from a `.conf` file with the same name as the service being monitored, located within the `/etc/throwawaydeadd` directory.
 
-## [Check/Notify Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to throwawaydeadd keepalived check/notify script folder")
+## [Check/Notify Script](https://github.com/saint-lascivious/throwawaydeadd/tree/master/script "Link to throwawaydeadd keepalived check/notify script directory")
 
 ### Install throwawaydeadd
 
@@ -48,11 +52,13 @@ It is not necessary (nor is it forbidden) to provide the `.service` section of t
 
    `wget https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/script/throwawaydeadd`
 
-4. Review or modify the script if desired, and ensure it is executable:
+4. Review or modify the script if desired.
 
-   `chmod +x throwawaydeadd`
+5. Ensure it is executable:
 
-5. Create link(s):
+   `chmod +x /etc/throwawaydeadd/throwawaydeadd`
+
+6. Create link(s):
 
    `ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.check`
 
@@ -141,9 +147,9 @@ External configuration may be supplied via a configuration file with the same na
    | `stop` | Stop (deactivate) one or more units specified on the command line. |
    | `enable` | Enable one or more units or unit instances. This will create a set of symlinks, as encoded in the [Install] sections of the indicated unit files. After the symlinks have been created, the system manager configuration is reloaded (in a way equivalent to daemon-reload), in order to ensure the changes are taken into account immediately. Note that this does not have the effect of also starting any of the units being enabled. If this is desired, combine this command with the --now switch, or invoke start with appropriate arguments later. Note that in case of unit instance enablement (i.e. enablement of units of the form foo@bar.service), symlinks named the same as instances are created in the unit configuration directory, however they point to the single template unit file they are instantiated from. |
    | `disable` | Disables one or more units. This removes all symlinks to the unit files backing the specified units from the unit configuration directory, and hence undoes any changes made by enable or link. Note that this removes all symlinks to matching unit files, including manually created symlinks, and not just those actually created by enable or link. Note that while disable undoes the effect of enable, the two commands are otherwise not symmetric, as disable may remove more symlinks than a prior enable invocation of the same unit created. |
-   | `mask` | Mask one or more units, as specified on the command line. This will link these unit files to /dev/null, making it impossible to start them. This is a stronger version of disable, since it prohibits all kinds of activation of the unit, including enablement and manual activation. Use this option with care. This honors the --runtime option to only mask temporarily until the next reboot of the system. The --now option may be used to ensure that the units are also stopped. This command expects valid unit names only, it does not accept unit file paths. |
+   | `mask` | Mask one or more units, as specified on the command line. This will link these unit files to /dev/null, making it impossible to start them. This is a stronger version of disable, since it prohibits all kinds of activation of the unit, including enablement and manual activation. Use this option with care. This honours the --runtime option to only mask temporarily until the next reboot of the system. The --now option may be used to ensure that the units are also stopped. This command expects valid unit names only, it does not accept unit file paths. |
    | `unmask` | Unmask one or more unit files, as specified on the command line. This will undo the effect of mask. This command expects valid unit names only, it does not accept unit file paths. |
-   | `reenable` | Reenable one or more units, as specified on the command line. This is a combination of disable and enable and is useful to reset the symlinks a unit file is enabled with to the defaults configured in its [Install] section. This command expects a unit name only, it does not accept paths to unit files. |
+   | `reenable` | Re-enable one or more units, as specified on the command line. This is a combination of disable and enable and is useful to reset the symlinks a unit file is enabled with to the defaults configured in its [Install] section. This command expects a unit name only, it does not accept paths to unit files. |
    | `reload` | Asks all units listed on the command line to reload their configuration. Note that this will reload the service-specific configuration, not the unit configuration file of systemd. If you want systemd to reload the configuration file of a unit, use the daemon-reload command. In other words: for the example case of Apache, this will reload Apache's httpd.conf in the web server, not the apache.service systemd unit file. |
    | `reload-or-restart` | Reload one or more units if they support it. If not, stop and then start them instead. If the units are not running yet, they will be started. |
    | `reset-failed` | Reset the "failed" state of the specified units, or if no unit name is passed, reset the state of all units. When a unit fails in some way (i.e. process exiting with non-zero error code, terminating abnormally or timing out), it will automatically enter the "failed" state and its exit code and status is recorded for introspection by the administrator until the service is stopped/re-started or reset with this command. |
@@ -157,7 +163,7 @@ External configuration may be supplied via a configuration file with the same na
    | `reboot` | Shut down and reboot the system. |
    | `halt` | Shut down and halt the system. This is mostly equivalent to systemctl start halt.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the halt operation is enqueued, without waiting for it to complete. Note that this operation will simply halt the OS kernel after shutting down, leaving the hardware powered on. Use systemctl poweroff for powering off the system (see below). |
    | `poweroff` | Shut down and power-off the system. This is mostly equivalent to systemctl start poweroff.target --job-mode=replace-irreversibly --no-block, but also prints a wall message to all users. This command is asynchronous; it will return after the power-off operation is enqueued, without waiting for it to complete. |
-   | `daemon-reexec` | Reexecute the systemd manager. This will serialize the manager state, reexecute the process and deserialize the state again. This command is of little use except for debugging and package upgrades. Sometimes, it might be helpful as a heavy-weight daemon-reload. While the daemon is being reexecuted, all sockets systemd listening on behalf of user configuration will stay accessible. |
+   | `daemon-reexec` | Re-execute the systemd manager. This will serialise the manager state, re-execute the process and de-serialise the state again. This command is of little use except for debugging and package upgrades. Sometimes, it might be helpful as a heavy-weight daemon-reload. While the daemon is being re-executed, all sockets systemd listening on behalf of user configuration will stay accessible. |
    | `daemon-reload` | Reload the systemd manager configuration. This will rerun all generators (see systemd.generator(7)), reload all unit files, and recreate the entire dependency tree. While the daemon is being reloaded, all sockets systemd listens on behalf of user configuration will stay accessible. |
    | `sleep` | Put the system to sleep, through suspend, hibernate, hybrid-sleep, or suspend-then-hibernate. The sleep operation to use is automatically selected by systemd-logind.service(8). By default, suspend-then-hibernate is used, and falls back to suspend and then hibernate if not supported. Refer to SleepOperation= setting in logind.conf(5) for more details. This command is asynchronous, and will return after the sleep operation is successfully enqueued. It will not wait for the sleep/resume cycle to complete. |
    | `suspend` | Suspend the system. This will trigger activation of the special target unit suspend.target. This command is asynchronous, and will return after the suspend operation is successfully enqueued. It will not wait for the suspend/resume cycle to complete. |
@@ -211,9 +217,9 @@ BACKUP_IS_BACKUP_DISABLED="enable"
 BACKUP_IS_BACKUP_MASKED="none"
 ```
 
-## [VRRP Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to keepalived VRRP config folder")
+## [VRRP Config](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config "Link to keepalived VRRP config directory")
 
-MASTER to BACKUP failover, with fast fall and slow rise.
+MASTER to BACKUP fail-over, with fast fall and slow rise.
 
 The following examples assume that the service to be monitored is `pihole-FTL`, that there is a MASTER running on `192.168.1.10` and a BACKUP running on `192.168.1.20`, and that the virtual router IP address is `192.168.1.99` on the `eth0` interface.
 
@@ -225,7 +231,7 @@ The Virtual Router ID (`99`) reflecting the final digits of the Virtual IP Addre
 
 Once again, any/all instances of `pihole-FTL` used in the examples should be replaced with the exact (case sensitive) service name to whose state you wish to attach your virtual IP address.
 
-### [MASTER](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to MASTER keepalived VRRP config folder")
+### [MASTER](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to MASTER keepalived VRRP config directory")
 
 Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/config/MASTER/keepalived.conf "Link to example MASTER keepalived.conf") for MASTER server:
 
@@ -270,7 +276,7 @@ vrrp_instance pihole-FTL {
 }
 ```
 
-### [BACKUP](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to BACKUP keepalived VRRP config folder")
+### [BACKUP](https://github.com/saint-lascivious/throwawaydeadd/tree/master/config/MASTER "Link to BACKUP keepalived VRRP config directory")
 
 Example [keepalived.conf](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/config/BACKUP/keepalived.conf "Link to example BACKUP keepalived.conf") for BACKUP server:
 

@@ -6,7 +6,7 @@
 # License: GNU General Public License Version 3
 
 # Overview: A simple and highly flexible keepalived check and/or notify
-#           script particularly useful for managing failover scenarios in a
+#           script particularly useful for managing fail-over scenarios in a
 #           high-availability environment.
 
 # The basename and file extension will dictate the service to monitor
@@ -41,7 +41,6 @@ script_dir="/etc/throwawaydeadd"
 script_function="${script_name##*.}"
 master_flag_file="${script_dir}/.is_master_server"
 lock_file="${script_dir}/${service_name}-${script_function}.lock"
-log_dir="/var/log/throwawaydeadd"
 
 config_file="${script_dir}/${service_name}.conf"
 if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
