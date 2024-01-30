@@ -30,7 +30,7 @@
 
 trap "exec 9>&-" EXIT               # Trap to close file descriptor on exit
 
-vrrp_arguments=("$@")               # VRRP arguments
+vrrp_arguments=("$@")               # VRRP argument array:
 vrrp_type="${vrrp_arguments[0]}"    # VRRP type GROUP or INSTANCE
 vrrp_name="${vrrp_arguments[1]}"    # VRRP name
 vrrp_state="${vrrp_arguments[2]}"   # VRRP state MASTER, BACKUP or FAULT
@@ -261,4 +261,9 @@ if flock -n 9; then
             exit 0
         ;;
     esac
+else
+    if ! command -v flock >/dev/null 2>&1; then
+        log_wrapper "flock command not found" "1"
+        exit 1
+    fi
 fi
