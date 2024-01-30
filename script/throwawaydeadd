@@ -30,7 +30,7 @@
 
 trap "exec 9>&-" EXIT               # Trap to close file descriptor on exit
 
-vrrp_arguments=("$@")               # VRRP argument array:
+vrrp_arguments=("$@")               # VRRP argument array
 vrrp_type="${vrrp_arguments[0]}"    # VRRP type GROUP or INSTANCE
 vrrp_name="${vrrp_arguments[1]}"    # VRRP name
 vrrp_state="${vrrp_arguments[2]}"   # VRRP state MASTER, BACKUP or FAULT
@@ -112,15 +112,8 @@ log_wrapper() {
             [4]="DEBUG"
         )
         log_category="${log_categories[$verbosity]}"
-        log_message="${timestamp}${log_category}${message}"
-        log_file="${log_dir}/${service_name}-${script_function}.log"
-        if ! command -v echo >/dev/null 2>&1; then
-            echo() {
-                input="$1"
-                printf "%b\n" "$1"
-            }
-        fi
-        echo "${log_message}" >> "${log_file}"
+        echo "${timestamp}${log_category}${message}" \
+            >> "${log_dir}/${service_name}-${script_function}.log"
     fi
 }
 
