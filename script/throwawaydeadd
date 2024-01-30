@@ -47,6 +47,7 @@ if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
     # shellcheck source=/dev/null
     source "${config_file}"
 fi
+
 is_master="${IS_MASTER:-false}"
 log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
 log_verbosity="${LOG_VERBOSITY:-0}"
@@ -113,7 +114,7 @@ log_wrapper() {
         log_category="${log_categories[$verbosity]}"
         log_message="${timestamp}${log_category}${message}"
         log_file="${log_dir}/${service_name}-${script_function}.log"
-        echo "${log_message}" >> "${log_file}"
+        printf "%b\n" "${log_message}" >> "${log_file}"
     fi
 }
 
