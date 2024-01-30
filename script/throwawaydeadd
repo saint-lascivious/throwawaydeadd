@@ -114,7 +114,13 @@ log_wrapper() {
         log_category="${log_categories[$verbosity]}"
         log_message="${timestamp}${log_category}${message}"
         log_file="${log_dir}/${service_name}-${script_function}.log"
-        printf "%b\n" "${log_message}" >> "${log_file}"
+        if ! command -v echo >/dev/null 2>&1; then
+            echo() {
+                input="$1"
+                printf "%b\n" "$1"
+            }
+        fi
+        echo "${log_message}" >> "${log_file}"
     fi
 }
 
