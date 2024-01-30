@@ -123,11 +123,14 @@ action_wrapper() {
         "none")
             log_wrapper "performing no action" "4"
         ;;
-        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|"try-reload-or-restart")
+        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|\
+        "reload"|"reload-or-restart"|"reset-failed"|"try-restart"|\
+        "try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
             systemctl "${action_string}" "${service_name}"
         ;;
-        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|"hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
+        "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|\
+        "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             log_wrapper "performing host level action ${action_string}" "3"
             systemctl "${action_string}"
         ;;
