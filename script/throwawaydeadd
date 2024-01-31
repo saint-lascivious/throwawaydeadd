@@ -2,38 +2,15 @@
 
 # throwawaydeadd
 
-# Author: saint-lascivious (Hayden Pearce) ©2023~2024
-# License: GNU General Public License Version 3
+# saint-lascivious (Hayden Pearce) ©2023~2024
+# GNU GPL V3
 
-# Overview: A simple and highly flexible keepalived check and/or notify
-#           script particularly useful for managing fail-over scenarios in a
-#           high-availability environment.
+trap "exec 9>&-" EXIT
 
-# The basename and file extension will dictate the service to monitor
-# and the function to perform respectively.
-#
-# The service name MUST be an exact match, and the extension MUST be one of
-# check, CHECK, notify or NOTIFY.
-#
-# It is not necessary (nor is it forbidden) to provide the `.service` section
-# of the service.
-
-# Example:
-# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.check
-# ln -s /etc/throwawaydeadd/throwawaydeadd /etc/throwawaydeadd/pihole-FTL.notify
-#
-# To indicate that they should function primarily as a MASTER server rather
-# than a BACKUP server, MASTER server(s) SHOULD create a trigger file.
-#
-# Example:
-# touch /etc/throwawaydeadd/.is_master_server
-
-trap "exec 9>&-" EXIT               # Trap to close file descriptor on exit
-
-vrrp_arguments=("$@")               # VRRP argument array
-vrrp_type="${vrrp_arguments[0]}"    # VRRP type GROUP or INSTANCE
-vrrp_name="${vrrp_arguments[1]}"    # VRRP name
-vrrp_state="${vrrp_arguments[2]}"   # VRRP state MASTER, BACKUP or FAULT
+vrrp_arguments=("$@")
+vrrp_type="${vrrp_arguments[0]}"
+vrrp_name="${vrrp_arguments[1]}"
+vrrp_state="${vrrp_arguments[2]}"
 
 script_name="$(basename "$0")"
 service_name="${script_name%.*}"
@@ -76,55 +53,41 @@ backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 
 log_wrapper() {
-    message=": $1"
-    verbosity="$2"
+    local message=": $1"
+    local verbosity="$2"
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
         if [[ ! -d "${log_dir}" ]]; then
             mkdir -p "${log_dir}"
         fi
-        if command -v date >/dev/null 2>&1; then
-            case $date_format in
-                "rfc3339")
-                    date_string="--rfc-3339=seconds"
-                ;;
-                "iso8601")
-                    date_string="--iso-8601=seconds"
-                ;;
-                "rfc5322")
-                    date_string="--rfc-email"
-                ;;
-                "locale")
-                    date_string="+%c"
-                ;;
-                "epoch")
-                    date_string="+%s"
-                ;;
-                *)
-                    date_string="--rfc-3339=seconds"
-                ;;
-            esac
-            timestamp="$(date ${date_string}) "
-        fi
+        case $date_format in
+            "rfc3339") date_string="--rfc-3339=seconds" ;;
+            "iso8601") date_string="--iso-8601=seconds" ;;
+            "rfc5322") date_string="--rfc-email" ;;
+            "locale")  date_string="+%c" ;;
+            "epoch")   date_string="+%s" ;;
+            *)         date_string="--rfc-3339=seconds" ;;
+        esac
+        local timestamp
+        timestamp="$(date ${date_string}) "
         declare -A log_categories=(
             [1]="ERROR"
             [2]="WARNING"
             [3]="INFO"
             [4]="DEBUG"
         )
-        log_category="${log_categories[$verbosity]}"
-        echo "${timestamp}${log_category}${message}" \
+        echo "${timestamp}${log_categories[$verbosity]}${message}" \
             >> "${log_dir}/${service_name}-${script_function}.log"
     fi
 }
 
 action_wrapper() {
-    action_string="$1"
+    local action_string="$1"
     case $action_string in
         "none")
             log_wrapper "performing no action" "4"
         ;;
-        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|"reenable"|\
-        "reload"|"reload-or-restart"|"reset-failed"|"try-restart"|\
+        "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|\
+        "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|\
         "try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
             systemctl "${action_string}" "${service_name}"
@@ -142,6 +105,7 @@ action_wrapper() {
 }
 
 exec 9>"${lock_file}"
+
 if flock -n 9; then
     if command -v systemctl >/dev/null 2>&1; then
         service_state="$(systemctl is-active "${service_name}")"
@@ -257,9 +221,7 @@ if flock -n 9; then
                         esac
                     fi
                 ;;
-                "FAILED"|"failed")
-                    log_wrapper "${state_change_message}" "1"
-                ;;
+                "FAILED"|"failed") log_wrapper "${state_change_message}" "1";;
             esac
             exit 0
         ;;
