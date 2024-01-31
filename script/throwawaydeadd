@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-# throwawaydeadd
-
-# saint-lascivious (Hayden Pearce) ©2023~2024
-# GNU GPL V3
-
 trap "exec 9>&-" EXIT
 
 vrrp_arguments=("$@")
@@ -21,7 +16,6 @@ lock_file="${script_dir}/${service_name}-${script_function}.lock"
 
 config_file="${script_dir}/${service_name}.conf"
 if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
-    # shellcheck source=/dev/null
     source "${config_file}"
 fi
 
