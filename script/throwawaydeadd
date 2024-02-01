@@ -7,7 +7,7 @@ vrrp_type="${vrrp_arguments[0]}"
 vrrp_name="${vrrp_arguments[1]}"
 vrrp_state="${vrrp_arguments[2]}"
 
-script_name="$(basename "$0")"
+script_name="$(basename "$0" 2>/dev/null)"
 service_name="${script_name%.*}"
 script_dir="/etc/throwawaydeadd"
 script_function="${script_name##*.}"
@@ -48,12 +48,10 @@ backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
 backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
 
 log_wrapper() {
-    local message=": $1"
+    local message="$1"
     local verbosity="$2"
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
-        if [[ ! -d "${log_dir}" ]]; then
-            mkdir -p "${log_dir}"
-        fi
+        mkdir -p "${log_dir}"
         case $date_format in
             "rfc3339") date_string="--rfc-3339=seconds" ;;
             "iso8601") date_string="--iso-8601=seconds" ;;
@@ -63,14 +61,14 @@ log_wrapper() {
             *)         date_string="--rfc-3339=seconds" ;;
         esac
         local timestamp
-        timestamp="$(date ${date_string}) "
+        timestamp="$(date ${date_string} 2>/dev/null)"
         declare -A log_categories=(
             [1]="ERROR"
             [2]="WARNING"
             [3]="INFO"
             [4]="DEBUG"
         )
-        echo "${timestamp}${log_categories[$verbosity]}${message}" \
+        echo "${timestamp} ${log_categories[$verbosity]}: ${message}" \
             >> "${log_dir}/${service_name}-${script_function}.log"
     fi
 }
@@ -103,7 +101,7 @@ exec 9>"${lock_file}"
 
 if flock -n 9; then
     if command -v systemctl >/dev/null 2>&1; then
-        service_state="$(systemctl is-active "${service_name}")"
+        service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
     else
         log_wrapper "systemctl command not found" "1"
         exit 1
@@ -192,7 +190,7 @@ if flock -n 9; then
                         esac
                     fi
                 ;;
-                "FAILED"|"failed") log_wrapper "${state_change_message}" "1" ;;
+                "FAILED"|"failed") log_wrapper "${state_change_message}" "2" ;;
             esac
             exit 0
         ;;
