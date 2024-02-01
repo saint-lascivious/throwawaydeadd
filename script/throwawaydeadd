@@ -53,12 +53,12 @@ log_wrapper() {
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
         mkdir -p "${log_dir}"
         case $date_format in
-            "rfc3339") date_string="--rfc-3339=seconds" ;;
-            "iso8601") date_string="--iso-8601=seconds" ;;
-            "rfc5322") date_string="--rfc-email" ;;
-            "locale")  date_string="+%c" ;;
-            "epoch")   date_string="+%s" ;;
-            *)         date_string="--rfc-3339=seconds" ;;
+            "rfc3339")            date_string="--rfc-3339=seconds" ;;
+            "iso8601")            date_string="--iso-8601=seconds" ;;
+            "rfc5322"|"rfcemail") date_string="--rfc-email" ;;
+            "locale")             date_string="+%c" ;;
+            "epoch")              date_string="+%s" ;;
+            *)                    date_string="--rfc-3339=seconds" ;;
         esac
         local timestamp
         timestamp="$(date ${date_string} 2>/dev/null)"
@@ -100,7 +100,7 @@ action_wrapper() {
 exec 9>"${lock_file}"
 
 if flock -n 9; then
-    if command -v systemctl >/dev/null 2>&1; then
+    if type systemctl >/dev/null 2>&1; then
         service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
     else
         log_wrapper "systemctl command not found" "1"
@@ -196,7 +196,7 @@ if flock -n 9; then
         ;;
     esac
 else
-    if ! command -v flock >/dev/null 2>&1; then
+    if ! type flock >/dev/null 2>&1; then
         log_wrapper "flock command not found" "1"
         exit 1
     fi

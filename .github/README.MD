@@ -104,11 +104,11 @@ External configuration may be supplied via a configuration file with the same na
 
    | Option | Example |
    | :---: | :---: |
-   | `rfc3339` | 2006-08-14 02:34:56-06:00 |
-   | `iso8601` | 2006-08-14T02:34:56-06:00 |
-   | `rfc5322` | Mon, 14 Aug 2006 02:34:56 -0600 |
-   | `locale` | Mon 14 Aug 2006 02:34:56 NZDT |
-   | `epoch` | 1705996640 |
+   | `rfc3339` | Output date and time in RFC 3339 format, example: 2006-08-14 02:34:56-06:00 |
+   | `iso8601` | Output date and time in ISO 8601 format, example: 2006-08-14T02:34:56-06:00 |
+   | `rfc5322`, `rfcemail` | Output date and time in RFC 5322 (Email) format, example: Mon, 14 Aug 2006 02:34:56 -0600 |
+   | `locale` | Current locale's date and time (En-NZ shown), example: Mon 14 Aug 2006 02:34:56 NZDT |
+   | `epoch` | Seconds elapsed since 1970-01-01 00:00:00 UTC, example: 1705996640 |
 
    Any other string will result in the default value being used instead.
 
