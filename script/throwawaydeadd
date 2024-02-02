@@ -79,21 +79,21 @@ action_wrapper() {
     local action_string="$1"
     case $action_string in
         "none")
-            log_wrapper "performing no action" "4"
+            log_wrapper "no action performed for action 'none'" "4"
         ;;
         "restart"|"start"|"stop"|"enable"|"disable"|"mask"|"unmask"|\
         "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|\
         "try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
             if ! systemctl "${action_string}" "${service_name}"; then
-                log_wrapper "systemctl action ${action_string} failed" "2"
+                log_wrapper "service action ${action_string} failed" "2"
             fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|\
         "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
-            log_wrapper "performing host level action ${action_string}" "2"
+            log_wrapper "performing host level action ${action_string}" "3"
             if ! systemctl "${action_string}"; then
-                log_wrapper "systemctl action ${action_string} failed" "2"
+                log_wrapper "host action ${action_string} failed" "2"
             fi
         ;;
         *)
