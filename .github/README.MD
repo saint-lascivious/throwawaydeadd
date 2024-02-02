@@ -38,7 +38,7 @@ The basename and file extension will dictate the service to monitor and the func
 
 The service name MUST be an exact match, and the extension MUST be one of `check`, `CHECK`, `notify` or `NOTIFY`.
 
-It is not necessary (nor is it forbidden) to provide the `.service` section of the service.
+The service name MUST NOT include the `.service` extension in its name.
 
 1. Create the directory `throwawaydeadd` and its symbolic links will live:
 

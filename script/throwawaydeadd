@@ -52,23 +52,25 @@ log_wrapper() {
     local verbosity="$2"
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
         mkdir -p "${log_dir}"
-        case $date_format in
-            "rfc3339")            date_string="--rfc-3339=seconds" ;;
-            "iso8601")            date_string="--iso-8601=seconds" ;;
-            "rfc5322"|"rfcemail") date_string="--rfc-email" ;;
-            "locale")             date_string="+%c" ;;
-            "epoch")              date_string="+%s" ;;
-            *)                    date_string="--rfc-3339=seconds" ;;
-        esac
-        local timestamp
-        timestamp="$(date ${date_string} 2>/dev/null)"
+        if type date >/dev/null 2>&1; then
+            case $date_format in
+                "rfc3339")            date_string="--rfc-3339=seconds" ;;
+                "iso8601")            date_string="--iso-8601=seconds" ;;
+                "rfc5322"|"rfcemail") date_string="--rfc-email" ;;
+                "locale")             date_string="+%c" ;;
+                "epoch")              date_string="+%s" ;;
+                *)                    date_string="--rfc-3339=seconds" ;;
+            esac
+            local timestamp
+            timestamp="$(date ${date_string} 2>/dev/null) - "
+        fi
         declare -A log_categories=(
             [1]="ERROR"
             [2]="WARNING"
             [3]="INFO"
             [4]="DEBUG"
         )
-        echo "${timestamp} ${log_categories[$verbosity]}: ${message}" \
+        echo "${timestamp}${log_categories[$verbosity]}: ${message}" \
             >> "${log_dir}/${service_name}-${script_function}.log"
     fi
 }
@@ -83,12 +85,16 @@ action_wrapper() {
         "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|\
         "try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
-            systemctl "${action_string}" "${service_name}"
+            if ! systemctl "${action_string}" "${service_name}"; then
+                log_wrapper "systemctl action ${action_string} failed" "2"
+            fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|\
         "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             log_wrapper "performing host level action ${action_string}" "2"
-            systemctl "${action_string}"
+            if ! systemctl "${action_string}"; then
+                log_wrapper "systemctl action ${action_string} failed" "2"
+            fi
         ;;
         *)
             log_wrapper "unknown action ${action_string}" "1"
@@ -101,7 +107,14 @@ exec 9>"${lock_file}"
 
 if flock -n 9; then
     if type systemctl >/dev/null 2>&1; then
-        service_state="$(systemctl is-active "${service_name}" 2>/dev/null)"
+        if ! service_state="$(systemctl is-active "${service_name}" \
+        2>/dev/null)"; then
+            if ! systemctl list-units "${service_name}.service" \
+            >/dev/null 2>&1; then
+                log_wrapper "${service_name}.service not found" "1"
+                exit 1
+            fi
+        fi
     else
         log_wrapper "systemctl command not found" "1"
         exit 1
