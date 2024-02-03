@@ -1,11 +1,35 @@
 #!/usr/bin/env bash
 
-trap "exec 9>&-" EXIT
+version="0.9"
 
 vrrp_arguments=("$@")
 vrrp_type="${vrrp_arguments[0]}"
 vrrp_name="${vrrp_arguments[1]}"
 vrrp_state="${vrrp_arguments[2]}"
+
+case $vrrp_type in
+    "-h"|"help"|"--help")
+        echo -e "Usage: throwawaydeadd {OPTION|GNU LONG OPTION}
+\\nOption         GNU long option     Description
+ -h, help       --help              Display this help dialogue
+ -l, list       --list-services     List all services by name
+ -v, version    --version           Display throwawaydeadd version"
+        exit 0
+    ;;
+    "-l"|"list"|"--list-services")
+        if type systemctl awk grep >/dev/null 2>&1; then
+            systemctl list-units --type=service --no-pager --no-legend | \
+            awk -F'.' '{print $1}' | grep -v '@'
+        fi
+        exit 0
+    ;;
+    "-v"|"version"|"--version")
+        echo "throwawaydeadd v${version}"
+        exit 0
+    ;;
+esac
+
+trap "exec 9>&-" EXIT
 
 script_name="$(basename "$0" 2>/dev/null)"
 service_name="${script_name%.*}"

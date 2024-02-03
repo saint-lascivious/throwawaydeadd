@@ -320,3 +320,13 @@ vrrp_instance pihole-FTL {
     notify /etc/throwawaydeadd/pihole-FTL.notify
 }
 ```
+
+### More Options
+
+With a somewhat creative (ab)use of function, the `throwawaydeadd` script may be run with ONE (1) of the following command line options.
+
+   | Option | GNU Long Option | Description |
+   | :---: | :---: | :---: |
+   | `-h`, `help` | `--help` | Display help dialogue. |
+   | `-l`, `list` | `--list-services` | List all services by name. |
+   | `-v`, `version` | `--version` | Display throwawaydeadd version. |
