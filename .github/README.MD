@@ -323,10 +323,11 @@ vrrp_instance pihole-FTL {
 
 ### More Options
 
-With a somewhat creative (ab)use of function, the `throwawaydeadd` script may be run with ONE (1) of the following command line options.
+With a somewhat creative (ab)use of `keepalived`'s `VRRP TYPE` variable, the `throwawaydeadd` script may be run with ONE (1) of the following command line options.
 
    | Option | GNU Long Option | Description |
    | :---: | :---: | :---: |
    | `-h`, `help` | `--help` | Display help dialogue. |
    | `-l`, `list` | `--list-services` | List all services by name. |
+   | `-r`, `restart` | `--restart` | Restart the keepalived service. |
    | `-v`, `version` | `--version` | Display throwawaydeadd version. |

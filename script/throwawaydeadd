@@ -1,11 +1,26 @@
 #!/usr/bin/env bash
 
-version="0.9"
+major="0"
+minor=".9"
+micro=".1"
+version="${major}${minor}${micro}"
 
 vrrp_arguments=("$@")
 vrrp_type="${vrrp_arguments[0]}"
 vrrp_name="${vrrp_arguments[1]}"
 vrrp_state="${vrrp_arguments[2]}"
+
+check_user() {
+    if [[ ! $EUID -eq 0 ]];then
+        if type sudo >/dev/null 2>&1; then
+            exec sudo bash "$0" "$@"
+            exit $?
+        else
+            echo "ERROR: run as root or install sudo"
+            exit 1
+        fi
+    fi
+}
 
 case $vrrp_type in
     "-h"|"help"|"--help")
@@ -13,13 +28,27 @@ case $vrrp_type in
 \\nOption         GNU long option     Description
  -h, help       --help              Display this help dialogue
  -l, list       --list-services     List all services by name
+ -r, restart    --restart           Restart the keepalived service
  -v, version    --version           Display throwawaydeadd version"
         exit 0
     ;;
     "-l"|"list"|"--list-services")
         if type systemctl awk grep >/dev/null 2>&1; then
-            systemctl list-units --type=service --no-pager --no-legend | \
-            awk -F'.' '{print $1}' | grep -v '@'
+            if ! systemctl list-units --type=service --no-pager --no-legend | \
+            awk -F'.' '{print $1}' | grep -v '@'; then
+                echo "ERROR: failed to list services"
+                exit 1
+            fi
+        fi
+        exit 0
+    ;;
+    "-r"|"restart"|"--restart")
+        check_user "$@"
+        if type systemctl >/dev/null 2>&1; then
+            if ! systemctl restart keepalived.service >/dev/null 2>&1; then
+                echo "ERROR: failed to restart keepalived.service"
+                exit 1
+            fi
         fi
         exit 0
     ;;
@@ -109,14 +138,15 @@ action_wrapper() {
         "reenable"|"reload"|"reload-or-restart"|"reset-failed"|"try-restart"|\
         "try-reload-or-restart")
             log_wrapper "performing service level action ${action_string}" "3"
-            if ! systemctl "${action_string}" "${service_name}"; then
+            if ! systemctl "${action_string}" "${service_name}" \
+            >/dev/null 2>&1; then
                 log_wrapper "service action ${action_string} failed" "2"
             fi
         ;;
         "reboot"|"poweroff"|"halt"|"daemon-reexec"|"daemon-reload"|"suspend"|\
         "hibernate"|"suspend-then-hibernate"|"hybrid-sleep")
             log_wrapper "performing host level action ${action_string}" "3"
-            if ! systemctl "${action_string}"; then
+            if ! systemctl "${action_string}" >/dev/null 2>&1; then
                 log_wrapper "host action ${action_string} failed" "2"
             fi
         ;;
