@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+export PATH+=":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 major="0"
 minor=".9"
 micro=".1"
@@ -24,12 +26,12 @@ check_user() {
 
 case $vrrp_type in
     "-h"|"help"|"--help")
-        echo -e "Usage: throwawaydeadd {OPTION|GNU LONG OPTION}
-\\nOption         GNU long option     Description
- -h, help       --help              Display this help dialogue
- -l, list       --list-services     List all services by name
- -r, restart    --restart           Restart the keepalived service
- -v, version    --version           Display throwawaydeadd version"
+        echo -e "Usage: throwawaydeadd {OPTION|GNU LONG OPTION}\\n
+Option         GNU Long Option     Description
+ -h, help       --help              Display this help dialogue.
+ -l, list       --list-services     List all services by name.
+ -r, restart    --restart           Restart the keepalived service.
+ -v, version    --version           Display throwawaydeadd version."
         exit 0
     ;;
     "-l"|"list"|"--list-services")
@@ -64,7 +66,6 @@ script_name="$(basename "$0" 2>/dev/null)"
 service_name="${script_name%.*}"
 script_dir="/etc/throwawaydeadd"
 script_function="${script_name##*.}"
-master_flag_file="${script_dir}/.is_master_server"
 lock_file="${script_dir}/${service_name}-${script_function}.lock"
 
 config_file="${script_dir}/${service_name}.conf"
@@ -73,36 +74,12 @@ if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
     source "${config_file}"
 fi
 
-is_master="${IS_MASTER:-false}"
-log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
-log_verbosity="${LOG_VERBOSITY:-0}"
-date_format="${DATE_FORMAT:-rfc3339}"
-expected_service_state_master="${EXPECTED_SERVICE_STATE_MASTER:-active}"
-expected_service_state_backup="${EXPECTED_SERVICE_STATE_BACKUP:-active}"
-master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
-master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
-master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
-master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
-master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
-backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
-backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
-backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
-backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
-backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
-master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
-master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
-master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
-master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
-master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
-backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
-backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
-backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
-backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
-backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
-
 log_wrapper() {
     local message="$1"
     local verbosity="$2"
+    local log_dir="${LOG_DIR:-/var/log/throwawaydeadd}"
+    local log_verbosity="${LOG_VERBOSITY:-0}"
+    local date_format="${DATE_FORMAT:-rfc3339}"
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
         mkdir -p "${log_dir}"
         if type date >/dev/null 2>&1; then
@@ -161,29 +138,38 @@ exec 9>"${lock_file}"
 
 if flock -n 9; then
     if type systemctl >/dev/null 2>&1; then
-        if ! service_state="$(systemctl is-active "${service_name}" \
-        2>/dev/null)"; then
+        if systemctl is-enabled "${service_name}" 2>/dev/null | grep -q \
+        "enabled"; then
+            service_state="$(systemctl is-active "${service_name}" \
+            2>/dev/null)"
+        else
             if ! systemctl list-units "${service_name}.service" \
             >/dev/null 2>&1; then
                 log_wrapper "${service_name}.service not found" "1"
                 exit 1
+            else
+                service_state="$(systemctl is-enabled "${service_name}" \
+                2>/dev/null)"
             fi
         fi
     else
         log_wrapper "systemctl command not found" "1"
         exit 1
     fi
+    master_flag_file="${script_dir}/.is_master_server"
     if [[ -f "${master_flag_file}" ]]; then
         is_master="true"
+    else
+        is_master="${IS_MASTER:-false}"
     fi
     case $script_function in
         "check"|"CHECK")
             if [[ "${is_master}" = "true" ]]; then
-                expected_service_state="${expected_service_state_master}"
+                expected_state="${EXPECTED_SERVICE_STATE_MASTER:-active}"
             else
-                expected_service_state="${expected_service_state_backup}"
+                expected_state="${EXPECTED_SERVICE_STATE_BACKUP:-active}"
             fi
-            if [[ "${service_state}" = "${expected_service_state}" ]]; then
+            if [[ "${service_state}" = "${expected_state}" ]]; then
                 log_wrapper "expected service state ${service_state}" "3"
                 exit 0
             else
@@ -192,8 +178,27 @@ if flock -n 9; then
             fi
         ;;
         "notify"|"NOTIFY")
-            state_change_message="${vrrp_type} ${vrrp_name} in \
-            ${vrrp_state} state"
+            state_change_message="${vrrp_type} ${vrrp_name} is ${vrrp_state}"
+            master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
+            master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
+            master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
+            master_is_master_disabled="${MASTER_IS_MASTER_DISABLED:-enable}"
+            master_is_master_masked="${MASTER_IS_MASTER_MASKED:-none}"
+            backup_is_master_active="${BACKUP_IS_MASTER_ACTIVE:-none}"
+            backup_is_master_inactive="${BACKUP_IS_MASTER_INACTIVE:-start}"
+            backup_is_master_failed="${BACKUP_IS_MASTER_FAILED:-restart}"
+            backup_is_master_disabled="${BACKUP_IS_MASTER_DISABLED:-enable}"
+            backup_is_master_masked="${BACKUP_IS_MASTER_MASKED:-none}"
+            master_is_backup_active="${MASTER_IS_BACKUP_ACTIVE:-none}"
+            master_is_backup_inactive="${MASTER_IS_BACKUP_INACTIVE:-start}"
+            master_is_backup_failed="${MASTER_IS_BACKUP_FAILED:-restart}"
+            master_is_backup_disabled="${MASTER_IS_BACKUP_DISABLED:-enable}"
+            master_is_backup_masked="${MASTER_IS_BACKUP_MASKED:-none}"
+            backup_is_backup_active="${BACKUP_IS_BACKUP_ACTIVE:-none}"
+            backup_is_backup_inactive="${BACKUP_IS_BACKUP_INACTIVE:-start}"
+            backup_is_backup_failed="${BACKUP_IS_BACKUP_FAILED:-restart}"
+            backup_is_backup_disabled="${BACKUP_IS_BACKUP_DISABLED:-enable}"
+            backup_is_backup_masked="${BACKUP_IS_BACKUP_MASKED:-none}"
             case $vrrp_state in
                 "MASTER"|"master")
                     if [[ "${is_master}" = "true" ]]; then
