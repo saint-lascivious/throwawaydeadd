@@ -6,15 +6,11 @@
 
 ## Overview
 
-A simple and highly flexible `keepalived` check and/or notify script particularly useful for managing fail-over scenarios in a high-availability environment.
+A simple and highly flexible `keepalived` check and/or notify script, particularly useful for managing fail-over scenarios in a high-availability environment.
 
-The primary goal of `throwawaydeadd` is to make high availability, highly available.
+Working alongside `keepalived`, `throwawaydeadd` makes high availability highly available.
 
 ## Features
-
-- **Light Weight:** Principle of least operation.
-
-   Get in. Do work. Get out.
 
 - **Simple:** Monitor (and optionally take action on) a service as easily as renaming a file or creating a symbolic link.
 
@@ -327,6 +323,7 @@ With a somewhat creative (ab)use of `keepalived`'s `VRRP TYPE` variable, the `th
 
    | Option | GNU Long Option | Description |
    | :---: | :---: | :---: |
+   | `-f`, `flush` | `--flush-locks` | Delete all throwawaydeadd .lock files. |
    | `-h`, `help` | `--help` | Display help dialogue. |
    | `-l`, `list` | `--list-services` | List all services by name. |
    | `-r`, `restart` | `--restart` | Restart the keepalived service. |

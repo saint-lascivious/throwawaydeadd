@@ -2,15 +2,17 @@
 
 export PATH+=":/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-major="0"
-minor=".9"
-micro=".1"
-version="${major}${minor}${micro}"
+readonly script_dir="/etc/throwawaydeadd"
 
-vrrp_arguments=("$@")
-vrrp_type="${vrrp_arguments[0]}"
-vrrp_name="${vrrp_arguments[1]}"
-vrrp_state="${vrrp_arguments[2]}"
+readonly vrrp_arguments=("$@")
+readonly vrrp_type="${vrrp_arguments[0]}"
+readonly vrrp_name="${vrrp_arguments[1]}"
+readonly vrrp_state="${vrrp_arguments[2]}"
+
+readonly major="0"
+readonly minor=".9"
+readonly micro=".2"
+readonly version="${major}${minor}${micro}"
 
 check_user() {
     if [[ ! $EUID -eq 0 ]];then
@@ -25,9 +27,17 @@ check_user() {
 }
 
 case $vrrp_type in
+    "-f"|"flush"|"--flush-locks")
+        check_user "$@"
+        for lock in "${script_dir}"/*-*.lock; do
+            rm "${lock}"
+        done
+        exit 0
+    ;;
     "-h"|"help"|"--help")
         echo -e "Usage: throwawaydeadd {OPTION|GNU LONG OPTION}\\n
 Option         GNU Long Option     Description
+ -f, flush      --flush-locks       Delete all throwawaydeadd .lock files.
  -h, help       --help              Display this help dialogue.
  -l, list       --list-services     List all services by name.
  -r, restart    --restart           Restart the keepalived service.
@@ -62,13 +72,13 @@ esac
 
 trap "exec 9>&-" EXIT
 
+readonly script_name
 script_name="$(basename "$0" 2>/dev/null)"
-service_name="${script_name%.*}"
-script_dir="/etc/throwawaydeadd"
-script_function="${script_name##*.}"
-lock_file="${script_dir}/${service_name}-${script_function}.lock"
+readonly service_name="${script_name%.*}"
+readonly script_function="${script_name##*.}"
+readonly lock_file="${script_dir}/${service_name}-${script_function}.lock"
 
-config_file="${script_dir}/${service_name}.conf"
+readonly config_file="${script_dir}/${service_name}.conf"
 if [[ -f "${config_file}" ]] && [[ -r "${config_file}" ]]; then
     # shellcheck source=/dev/null
     source "${config_file}"
@@ -81,7 +91,12 @@ log_wrapper() {
     local log_verbosity="${LOG_VERBOSITY:-0}"
     local date_format="${DATE_FORMAT:-rfc3339}"
     if [[ "${log_verbosity}" -ge "${verbosity}" ]]; then
-        mkdir -p "${log_dir}"
+        if type mkdir >/dev/null 2>&1; then
+            mkdir -p "${log_dir}"
+        else
+            log_wrapper "mkdir command not found" "1"
+            exit 1
+        fi
         if type date >/dev/null 2>&1; then
             case $date_format in
                 "rfc3339")            date_string="--rfc-3339=seconds" ;;
@@ -156,7 +171,7 @@ if flock -n 9; then
         log_wrapper "systemctl command not found" "1"
         exit 1
     fi
-    master_flag_file="${script_dir}/.is_master_server"
+    readonly master_flag_file="${script_dir}/.is_master_server"
     if [[ -f "${master_flag_file}" ]]; then
         is_master="true"
     else
@@ -178,7 +193,7 @@ if flock -n 9; then
             fi
         ;;
         "notify"|"NOTIFY")
-            state_change_message="${vrrp_type} ${vrrp_name} is ${vrrp_state}"
+            readonly state_message="${vrrp_type} ${vrrp_name} is ${vrrp_state}"
             master_is_master_active="${MASTER_IS_MASTER_ACTIVE:-none}"
             master_is_master_inactive="${MASTER_IS_MASTER_INACTIVE:-start}"
             master_is_master_failed="${MASTER_IS_MASTER_FAILED:-restart}"
@@ -202,7 +217,7 @@ if flock -n 9; then
             case $vrrp_state in
                 "MASTER"|"master")
                     if [[ "${is_master}" = "true" ]]; then
-                        log_wrapper "${state_change_message}" "3"
+                        log_wrapper "${state_message}" "3"
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_master_active}" ;;
@@ -216,7 +231,7 @@ if flock -n 9; then
                                 action_wrapper "${master_is_master_masked}" ;;
                         esac
                     else
-                        log_wrapper "${state_change_message}" "2"
+                        log_wrapper "${state_message}" "2"
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_master_active}" ;;
@@ -233,7 +248,7 @@ if flock -n 9; then
                 ;;
                 "BACKUP"|"backup")
                     if [[ "${is_master}" = "true" ]]; then
-                        log_wrapper "${state_change_message}" "2"
+                        log_wrapper "${state_message}" "2"
                         case $service_state in
                             "active")
                                 action_wrapper "${master_is_backup_active}" ;;
@@ -247,7 +262,7 @@ if flock -n 9; then
                                 action_wrapper "${master_is_backup_masked}" ;;
                         esac
                     else
-                        log_wrapper "${state_change_message}" "3"
+                        log_wrapper "${state_message}" "3"
                         case $service_state in
                             "active")
                                 action_wrapper "${backup_is_backup_active}" ;;
@@ -262,7 +277,7 @@ if flock -n 9; then
                         esac
                     fi
                 ;;
-                "FAILED"|"failed") log_wrapper "${state_change_message}" "2" ;;
+                "FAILED"|"failed") log_wrapper "${state_message}" "2" ;;
             esac
             exit 0
         ;;
