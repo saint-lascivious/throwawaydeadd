@@ -9,9 +9,9 @@ readonly vrrp_type="${vrrp_arguments[0]}"
 readonly vrrp_name="${vrrp_arguments[1]}"
 readonly vrrp_state="${vrrp_arguments[2]}"
 
-readonly major="0"
-readonly minor=".9"
-readonly micro=".2"
+readonly major="1"
+readonly minor=".0"
+readonly micro=""
 readonly version="${major}${minor}${micro}"
 
 check_user() {
@@ -41,6 +41,8 @@ Option         GNU Long Option     Description
  -h, help       --help              Display this help dialogue.
  -l, list       --list-services     List all services by name.
  -r, restart    --restart           Restart the keepalived service.
+ -s, start      --start             Start the keepalived service.
+ -S, stop       --stop              Stop the keepalived service.
  -v, version    --version           Display throwawaydeadd version."
         exit 0
     ;;
@@ -54,11 +56,22 @@ Option         GNU Long Option     Description
         fi
         exit 0
     ;;
-    "-r"|"restart"|"--restart")
+    "-r"|"restart"|"--restart"|"-s"|"start"|"--start"|"-S"|"stop"|"--stop")
         check_user "$@"
         if type systemctl >/dev/null 2>&1; then
-            if ! systemctl restart keepalived.service >/dev/null 2>&1; then
-                echo "ERROR: failed to restart keepalived.service"
+            case $vrrp_type in
+                "-r"|"restart"|"--restart")
+                    action="restart"
+                ;;
+                "-s"|"start"|"--start")
+                    action="start"
+                ;;
+                "-S"|"stop"|"--stop")
+                    action="stop"
+                ;;
+            esac
+            if ! systemctl "${action}" keepalived.service >/dev/null 2>&1; then
+                echo "ERROR: failed to ${action} keepalived.service"
                 exit 1
             fi
         fi
@@ -67,6 +80,12 @@ Option         GNU Long Option     Description
     "-v"|"version"|"--version")
         echo "throwawaydeadd v${version}"
         exit 0
+    ;;
+    *)
+        if [[ -z "${vrrp_name}" ]]; then
+            exec bash "$0" "--help"
+            exit $?
+        fi
     ;;
 esac
 

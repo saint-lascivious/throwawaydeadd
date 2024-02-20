@@ -327,4 +327,6 @@ With a somewhat creative (ab)use of `keepalived`'s `VRRP TYPE` variable, the `th
    | `-h`, `help` | `--help` | Display help dialogue. |
    | `-l`, `list` | `--list-services` | List all services by name. |
    | `-r`, `restart` | `--restart` | Restart the keepalived service. |
+   | `-s`, `start` | `--start` | Start the keepalived service. |
+   | `-S`, `stop` | `--stop` | Stop the keepalived service. |
    | `-v`, `version` | `--version` | Display throwawaydeadd version. |
