@@ -1,3 +1,11 @@
+```bash
+     _   _                                            _             _    _ 
+    | |_| |_  _ _ _____ __ ____ ___ __ ____ _ _  _ __| |___ __ _ __| |__| |
+    |  _| ' \| '_/ _ \ V  V / _` \ V  V / _` | || / _` / -_) _` / _` / _` |
+     \__|_||_|_| \___/\_/\_/\__,_|\_/\_/\__,_|\_, \__,_\___\__,_\__,_\__,_|
+                                              |__/
+```
+
 # [throwawaydeadd](https://raw.githubusercontent.com/saint-lascivious/throwawaydeadd/master/throwawaydeadd "throwawaydeadd - An oddly complex VRRP check/notify script") - An oddly complex VRRP check/notify script
 
 **Author:** saint-lascivious (Hayden Pearce) (C) 2026
@@ -472,6 +480,8 @@ For the complete GPL-3.0+ license text, visit: https://www.gnu.org/licenses/gpl-
 
 - **0.0.0 (Development)** - Initial release
   Wanna see something cool? Check out, this fukken' thing.
+- **0.0.1-development**   - Obligatory ascii header
+  Adds an obnoxious ascii text header in README and throwawaydeadd show_documentation(), as is required by nerd law.
 
 ## Support & Contributions
 

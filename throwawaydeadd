@@ -2,6 +2,12 @@
 
 show_documentation() {
     cat << 'DOCEOF'
+     _   _                                            _             _    _ 
+    | |_| |_  _ _ _____ __ ____ ___ __ ____ _ _  _ __| |___ __ _ __| |__| |
+    |  _| ' \| '_/ _ \ V  V / _` \ V  V / _` | || / _` / -_) _` / _` / _` |
+     \__|_||_|_| \___/\_/\_/\__,_|\_/\_/\__,_|\_, \__,_\___\__,_\__,_\__,_|
+                                              |__/
+
   throwawaydeadd                - An oddly complex VRRP check/notify script
 
   DESCRIPTION:
@@ -112,8 +118,16 @@ show_documentation() {
         You should have received a copy of the GNU General Public License
         along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-  VERSION:
-    0.0.0 (Development)
+  VERSION HISTORY:
+
+    0.0.0 (Development) - Initial release
+                          Wanna see something cool? Check out, this fukken'
+                          thing.
+    0.0.1-development   - Obligatory ascii header
+                          Adds an obnoxious ascii text header in README and
+                          throwawaydeadd show_documentation(), as is required
+                          by nerd law.
+
 
   AUTHOR:
     saint-lascivious (Hayden Pearce)
@@ -136,7 +150,7 @@ show_documentation() {
 DOCEOF
 }
 
-THROWAWAYDEADD_VERSION="0.0.0 (Development)"
+THROWAWAYDEADD_VERSION="0.0.1-development"
 
 VERBOSITY="${THROWAWAYDEADD_VERBOSITY:-0}"
 
