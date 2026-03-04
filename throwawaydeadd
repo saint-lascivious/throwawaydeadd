@@ -1,0 +1,1567 @@
+#!/bin/sh
+
+show_documentation() {
+    cat << 'DOCEOF'
+  throwawaydeadd                - An oddly complex VRRP check/notify script
+
+  DESCRIPTION:
+    A wildly convoluted VRRP tracking script that accepts the service name
+    and mode as command-line arguments, with optional config file support.
+
+    The script checks if the specified service is running in "check" mode and
+    performs actions based on VRRP state changes in "notify" mode, using a
+    simple config file format to define actions for each state and role.
+
+    In check mode, service availability is cached per-service with a
+    configurable timeout to avoid redundant process checks during frequent
+    script invocations. Stale cache entries are automatically cleaned up.
+
+    In notify mode, service actions are executed via the detected init system:
+    SysV (service), systemd (systemctl), OpenRC (rc-service), runit (sv) or
+    macOS launchd (launchctl). The detection order is configurable.
+
+  USAGE:
+    throwawaydeadd [<service> <mode>] [OPTIONS] [vrrp_args...]
+    throwawaydeadd show w|c          - Display warranty or conditions
+    throwawaydeadd flush             - Remove all cached state files
+    throwawaydeadd install PATH      - Install to system (default:
+                                       /usr/local/bin/keepalived/throwawaydeadd)
+    throwawaydeadd uninstall PATH    - Uninstall from system
+
+  ARGUMENTS:
+    service                             - Service name to monitor
+                                          (e.g., nginx)
+    mode                                - Operation mode: check|notify
+    [vrrp_args...]                      - VRRP state arguments passed by
+                                          keepalived in notify mode
+                                          (TYPE NAME STATE PRIORITY)
+
+  OPTIONS:
+    h, -h, help, --help                 - Display this help message
+    v, -v, version, --version           - Display version information
+    s, -s, show, --show w|c             - Show warranty (w) or conditions (c)
+    c, -c, config, --config PATH        - Path to configuration file
+    f, -f, flush, --flush               - Flush all cached state files
+    i, -i, install, --install PATH      - Install script to system
+    u, -u, uninstall, --uninstall PATH  - Uninstall script from system
+
+  EXAMPLES:
+    throwawaydeadd nginx check
+    throwawaydeadd nginx notify -f /etc/keepalived/nginx.conf
+    throwawaydeadd flush
+    throwawaydeadd install /usr/local/bin/keepalived
+    throwawaydeadd uninstall
+    throwawaydeadd show w
+
+  CONFIGURATION:
+    IS_MASTER=yes|true|no|false - Declare a dedicated master role, important
+                                  for later in notify mode when determining
+                                  which actions to take based on VRRP state
+                                  and role.
+                                  (case-insensitive; default: false)
+    <ROLE>_IS_<STATE>=<action>  - Define actions for each VRRP role and state
+                                  combination (e.g., MASTER_IS_MASTER=start)
+                                  ROLE: MASTER or BACKUP (uses IS_MASTER)
+                                  STATE: MASTER|BACKUP|FAULT (from keepalived)
+                                  action: none|start|stop|restart|reload
+                                  (case-insensitive; default: none)
+    INIT_SYSTEM_ORDER=<list>    - Preferred init system order (default:
+                                  service,systemctl,rc-service,sv,launchctl)
+    STATE_CACHE_DIR=<path>      - Directory for state cache files
+                                  (default: auto-detect RAM-based fs)
+                                  Priority: /dev/shm > /tmp > /run
+    STATE_CACHE_TIMEOUT=<secs>  - Service state cache timeout in seconds
+                                  (default: 30; 0 disables caching)
+    STATE_CACHE_CLEANUP=<secs>  - Remove cache files older than N seconds
+                                  (default: 300)
+    VERBOSITY=0|1|2|3           - Set logging verbosity
+    MODE=check|notify           - Operation mode
+    SERVICE=<name>              - Service name to monitor
+
+  ENVIRONMENT:
+    THROWAWAYDEADD_VERBOSITY    - Logging verbosity
+                                  0=none
+                                  1=error
+                                  2=info
+                                  3=debug
+                                  (default: 0)
+
+  EXIT CODES:
+    0                           - Success
+                                  Service running or action succeeded
+    1                           - Failure
+                                  Service not running or action failed
+    2                           - Invalid usage
+                                  Missing arguments or unknown options
+    3                           - Config file error
+                                  File not found or not readable
+
+  LICENSE:
+    GNU General Public License v3.0 or later (GPL-3.0+)
+
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+  VERSION:
+    0.0.0 (Development)
+
+  AUTHOR:
+    saint-lascivious (Hayden Pearce)
+    https://github.com/saint-lascivious
+
+  COPYRIGHT:
+    (C) 2026 Hayden Pearce. All rights reserved.
+
+  HOMEPAGE:
+    https://github.com/saint-lascivious/throwawaydeadd
+
+  SECURITY NOTE:
+    Config files are sourced directly into the shell environment. Ensure
+    config files are only writable by trusted users and contain only valid
+    variable assignments. Config files must contain only uppercase variable
+    assignments (VAR=val format), comments, and blank lines.
+    The script performs basic validation on config files to prevent sourcing
+    of malformed files. Config files are checked for appropriate permissions
+    and ownership to prevent unauthorized modification.
+DOCEOF
+}
+
+THROWAWAYDEADD_VERSION="0.0.0 (Development)"
+
+VERBOSITY="${THROWAWAYDEADD_VERBOSITY:-0}"
+
+if command -v logger >/dev/null 2>&1; then
+    readonly USE_LOGGER=true
+else
+    readonly USE_LOGGER=false
+fi
+
+################################################################################
+# log_handler                   - Log a message at a given verbosity
+#
+# DESCRIPTION:
+#   Logs to syslog via logger when available, or to stderr otherwise.
+#   Messages are prefixed with a severity level (ERROR, INFO, DEBUG) based on
+#   the provided log level.
+#
+# USAGE:
+#   log_handler <level> <message...>
+#
+# ARGUMENTS:
+#   level                       - 1=error, 2=info, 3=debug
+#   message...                  - Message to log
+################################################################################
+log_handler() {
+    _VERBOSITY="$1"
+    shift
+
+    case "$_VERBOSITY" in
+        1) _LOG_PREFIX="ERROR" ;;
+        2) _LOG_PREFIX="INFO" ;;
+        3) _LOG_PREFIX="DEBUG" ;;
+        *)
+            printf "[ERROR]: Invalid log level '%s'\n" "$_VERBOSITY" >&2
+            return 1
+            ;;
+    esac
+
+    case "$VERBOSITY" in
+        0|1|2|3) _EFFECTIVE_VERBOSITY="$VERBOSITY" ;;
+        *) _EFFECTIVE_VERBOSITY=0 ;;
+    esac
+
+    if [ "$_EFFECTIVE_VERBOSITY" -ge "$_VERBOSITY" ]; then
+        if [ "$USE_LOGGER" = true ]; then
+            logger -t throwawaydeadd "[$_LOG_PREFIX]: $*"
+        else
+            printf "[%s]: %s\n" "$_LOG_PREFIX" "$*" >&2
+        fi
+    fi
+}
+
+################################################################################
+# upper_to_lower                - Convert a string to lowercase
+#
+# DESCRIPTION:
+#   Converts an uppercase or mixed case input string to lowercase.
+#
+# USAGE:
+#   upper_to_lower <string>
+################################################################################
+upper_to_lower() {
+    printf "%s" "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+################################################################################
+# check_is_true                 - Test for boolean truthy values
+#
+# DESCRIPTION:
+#   Case insensitive true/false test.
+#   Returns success (0) for yes|true|1
+#   Returns failure (1) for no|false|0|*
+#
+# USAGE:
+#   check_is_true <value>
+#
+# USES:
+#   upper_to_lower()
+#   log_handler()
+#
+################################################################################
+check_is_true() {
+    case "$(upper_to_lower "$1")" in
+        yes|true|1) return 0 ;;
+        no|false|0) return 1 ;;
+        *)
+            log_handler 1 "Invalid boolean value $1 (expected yes|true|1|no|false|0)"
+            return 1
+            ;;
+    esac
+}
+
+################################################################################
+# check_config_permissions      - Verify config file permissions and ownership
+#
+# DESCRIPTION:
+#   Ensures config file is not world-writable or group-writable, and is owned
+#   by root or the current user to prevent unauthorized modification.
+#
+# USAGE:
+#   check_config_permissions <filepath>
+#
+# USES:
+#   log_handler()
+#
+# EXIT CODES:
+#   0 - Permissions acceptable
+#   1 - Permissions too permissive or ownership issue
+################################################################################
+check_config_permissions() {
+    _CONFIG_PATH="$1"
+
+    if stat --version >/dev/null 2>&1; then
+        _CONFIG_PERMISSIONS=$(stat -c '%a' "$_CONFIG_PATH" 2>/dev/null)
+        _CONFIG_OWNERSHIP=$(stat -c '%U' "$_CONFIG_PATH" 2>/dev/null)
+    else
+        _CONFIG_PERMISSIONS=$(stat -f '%Lp' "$_CONFIG_PATH" 2>/dev/null)
+        _CONFIG_OWNERSHIP=$(stat -f '%Su' "$_CONFIG_PATH" 2>/dev/null)
+    fi
+
+    if [ -z "$_CONFIG_PERMISSIONS" ] || [ -z "$_CONFIG_OWNERSHIP" ]; then
+        log_handler 1 "Cannot determine permissions/ownership of $_CONFIG_PATH"
+        return 1
+    fi
+
+    _WORLD_DIGIT=$(printf "%s" "$_CONFIG_PERMISSIONS" | tail -c 2 | head -c 1)
+    _GROUP_DIGIT=$(printf "%s" "$_CONFIG_PERMISSIONS" | tail -c 3 | head -c 1)
+
+    case "$_GROUP_DIGIT$_WORLD_DIGIT" in
+        *[2367]*)
+            log_handler 1 "Config file is world or group writable: $_CONFIG_PERMISSIONS"
+            return 1
+            ;;
+    esac
+
+    _CURRENT_USER=$(id -un 2>/dev/null || whoami)
+    if [ "$_CONFIG_OWNERSHIP" != "root" ] && [ "$_CONFIG_OWNERSHIP" != "$_CURRENT_USER" ]; then
+        log_handler 1 "Config file not owned by root or current user: $_CONFIG_OWNERSHIP"
+        return 1
+    fi
+
+    log_handler 3 "Config permissions verified: owner=$_CONFIG_OWNERSHIP, mode=$_CONFIG_PERMISSIONS"
+    return 0
+}
+
+################################################################################
+# get_state_directory           - Get the state directory path
+#
+# DESCRIPTION:
+#   Returns the preferred state directory path for cache files.
+#   Prioritizes RAM-based filesystems to avoid disk I/O overhead.
+#   Order: /dev/shm > /tmp > /run > fallback to current directory
+#
+# USAGE:
+#   get_state_directory
+#
+# USES:
+#   log_handler()
+################################################################################
+get_state_directory() {
+    _BASE_DIR="${STATE_CACHE_DIR:-}"
+
+    if [ -n "$_BASE_DIR" ]; then
+        if [ -d "$_BASE_DIR" ] && [ -w "$_BASE_DIR" ]; then
+            printf "%s/throwawaydeadd" "$_BASE_DIR"
+            return 0
+        else
+            log_handler 2 "Configured STATE_CACHE_DIR $_BASE_DIR is not accessible"
+        fi
+    fi
+
+    for _DIR in "/dev/shm" "/tmp" "/run"; do
+        if [ -d "$_DIR" ] && [ -w "$_DIR" ]; then
+            printf "%s/throwawaydeadd" "$_DIR"
+            return 0
+        fi
+    done
+
+    log_handler 2 "No writable tmpfs found, using current directory"
+    printf "./throwawaydeadd_cache"
+    return 0
+}
+
+################################################################################
+# get_state_file_path           - Get the state file path for a service
+#
+# DESCRIPTION:
+#   Returns the full path to the state file for a given service.
+#   State files are stored in the state directory as throwawaydeadd_<service>.state
+#
+# USAGE:
+#   get_state_file_path <service>
+#
+# USES:
+#   get_state_directory()
+################################################################################
+get_state_file_path() {
+    _SERVICE="$1"
+    _STATE_DIR=$(get_state_directory)
+    if [ -z "$_STATE_DIR" ]; then
+        log_handler 1 "Failed to determine state directory"
+        return 1
+    fi
+    printf "%s/throwawaydeadd_%s.state" "$_STATE_DIR" "$_SERVICE"
+    return 0
+}
+
+################################################################################
+# check_cached_state            - Check cached service state with timeout
+#
+# DESCRIPTION:
+#   Returns cached service state if timeout hasn't expired.
+#   Cache state format: "timestamp:status" (status is 0 or 1)
+#
+# USAGE:
+#   check_cached_state <service> <timeout_seconds>
+#
+# USES:
+#   get_state_file_path()
+#   log_handler()
+#
+# EXIT CODES:
+#   0 - Service is running (cached)
+#   1 - Service not running or cache invalid
+#   2 - No cached state available
+################################################################################
+check_cached_state() {
+    _SERVICE="$1"
+    _TIMEOUT="${2:-${STATE_CACHE_TIMEOUT:-30}}"
+    _STATE_FILE=$(get_state_file_path "$_SERVICE")
+
+    case "$_TIMEOUT" in
+        ''|*[!0-9]*)
+            log_handler 1 "Invalid cache timeout for $_SERVICE: $_TIMEOUT"
+            return 2
+            ;;
+    esac
+
+    if [ "$_TIMEOUT" -le 0 ]; then
+        log_handler 3 "State caching disabled"
+        return 2
+    fi
+
+    if [ ! -f "$_STATE_FILE" ]; then
+        log_handler 3 "No cached state for $_SERVICE"
+        return 2
+    fi
+
+    _CACHED_DATA=$(cat "$_STATE_FILE" 2>/dev/null)
+    _CACHED_TIME=$(printf "%s" "$_CACHED_DATA" | cut -d: -f1)
+    _CACHED_STATUS=$(printf "%s" "$_CACHED_DATA" | cut -d: -f2)
+
+    if [ -z "$_CACHED_TIME" ] || [ -z "$_CACHED_STATUS" ]; then
+        log_handler 3 "Corrupted state file for $_SERVICE"
+        return 2
+    fi
+
+    case "$_CACHED_TIME" in
+        ''|*[!0-9]*)
+            log_handler 3 "Invalid cached timestamp for $_SERVICE: $_CACHED_TIME"
+            return 2
+            ;;
+    esac
+
+    case "$_CACHED_STATUS" in
+        0|1) ;;
+        *)
+            log_handler 3 "Invalid cached status for $_SERVICE: $_CACHED_STATUS"
+            return 2
+            ;;
+    esac
+
+    _CURRENT_TIME=$(date +%s 2>/dev/null)
+
+    if [ -z "$_CURRENT_TIME" ]; then
+        log_handler 3 "Cannot determine current time"
+        return 2
+    fi
+
+    _AGE=$((_CURRENT_TIME - _CACHED_TIME))
+
+    if [ "$_AGE" -lt 0 ] || [ "$_AGE" -gt "$_TIMEOUT" ]; then
+        log_handler 3 "Cached state expired for $_SERVICE (age: $_AGE seconds)"
+        return 2
+    fi
+
+    log_handler 3 "Using cached state for $_SERVICE (age: $_AGE seconds, status: $_CACHED_STATUS)"
+    return "$_CACHED_STATUS"
+}
+
+################################################################################
+# update_state_file             - Update cached service state
+#
+# DESCRIPTION:
+#   Writes current timestamp and service status to state file.
+#   Creates state directory if it doesn't exist.
+#
+# USAGE:
+#   update_state_file <service> <status>
+#
+# USES:
+#   get_state_file_path()
+#   get_state_directory()
+#   log_handler()
+#
+# ARGUMENTS:
+#   service                     - Service name
+#   status                      - 0 (running) or 1 (not running)
+################################################################################
+update_state_file() {
+    _SERVICE="$1"
+    _STATUS="$2"
+    _STATE_FILE=$(get_state_file_path "$_SERVICE")
+    _STATE_DIR=$(get_state_directory)
+
+    if [ ! -d "$_STATE_DIR" ]; then
+        if ! mkdir -p "$_STATE_DIR" 2>/dev/null; then
+            log_handler 3 "Cannot create state directory $_STATE_DIR"
+            return 1
+        fi
+    fi
+
+    _CURRENT_TIME=$(date +%s 2>/dev/null)
+    if [ -z "$_CURRENT_TIME" ]; then
+        log_handler 3 "Cannot determine current time"
+        return 1
+    fi
+
+    printf "%s:%s" "$_CURRENT_TIME" "$_STATUS" > "$_STATE_FILE" 2>/dev/null || {
+        log_handler 3 "Failed to write state file $_STATE_FILE"
+        return 1
+    }
+
+    log_handler 3 "Updated state file for $_SERVICE: status=$_STATUS"
+    return 0
+}
+
+################################################################################
+# cleanup_state_files           - Remove stale state cache files
+#
+# DESCRIPTION:
+#   Deletes state files older than the specified timeout to prevent
+#   accumulation of stale cache entries.
+#
+# USAGE:
+#   cleanup_state_files <max_age_seconds>
+#
+# USES:
+#   get_state_directory()
+#   log_handler()
+################################################################################
+cleanup_state_files() {
+    _MAX_AGE="${1:-300}"
+    _STATE_DIR=$(get_state_directory)
+
+    case "$_MAX_AGE" in
+        ''|*[!0-9]*)
+            log_handler 1 "Invalid cleanup max age: $_MAX_AGE"
+            return 2
+            ;;
+    esac
+
+    if [ ! -d "$_STATE_DIR" ]; then
+        log_handler 3 "State directory does not exist, skipping cleanup"
+        return 0
+    fi
+
+    _CURRENT_TIME=$(date +%s 2>/dev/null)
+    if [ -z "$_CURRENT_TIME" ]; then
+        log_handler 1 "Cannot determine current time, cleanup failed"
+        return 1
+    fi
+
+    _CLEANED=0
+    _FAILED=0
+
+    for _STATE_FILE in "$_STATE_DIR"/throwawaydeadd_*.state; do
+        if [ ! -f "$_STATE_FILE" ]; then
+            continue
+        fi
+
+        if ! _CACHED_TIME=$(cut -d: -f1 "$_STATE_FILE" 2>/dev/null); then
+            _FAILED=$((_FAILED + 1))
+            log_handler 1 "Failed to read state file $(basename "$_STATE_FILE")"
+            continue
+        fi
+
+        case "$_CACHED_TIME" in
+            ''|*[!0-9]*)
+                log_handler 3 "Skipping malformed state file $(basename "$_STATE_FILE")"
+                continue
+                ;;
+        esac
+
+        _AGE=$((_CURRENT_TIME - _CACHED_TIME))
+        if [ "$_AGE" -gt "$_MAX_AGE" ]; then
+            if rm -f "$_STATE_FILE" 2>/dev/null; then
+                _CLEANED=$((_CLEANED + 1))
+                log_handler 3 "Cleaned state file $(basename "$_STATE_FILE") (age: $_AGE seconds)"
+            else
+                _FAILED=$((_FAILED + 1))
+                log_handler 1 "Failed to remove stale state file $(basename "$_STATE_FILE")"
+            fi
+        fi
+    done
+
+    if [ "$_CLEANED" -gt 0 ]; then
+        log_handler 3 "Cleaned $_CLEANED stale state file(s)"
+    fi
+
+    if [ "$_FAILED" -gt 0 ]; then
+        log_handler 1 "Cleanup completed with $_FAILED error(s)"
+        return 1
+    fi
+
+    return 0
+}
+
+################################################################################
+# flush_state_files             - Remove all state cache files
+#
+# DESCRIPTION:
+#   Deletes all state cache files regardless of age to completely reset
+#   the service state cache.
+#
+# USAGE:
+#   flush_state_files
+#
+# USES:
+#   get_state_directory()
+#   log_handler()
+################################################################################
+flush_state_files() {
+    _STATE_DIR=$(get_state_directory)
+
+    if [ ! -d "$_STATE_DIR" ]; then
+        log_handler 2 "State directory does not exist"
+        return 0
+    fi
+
+    _FLUSHED=0
+    for _STATE_FILE in "$_STATE_DIR"/throwawaydeadd_*.state; do
+        if [ ! -f "$_STATE_FILE" ]; then
+            continue
+        fi
+
+        if rm -f "$_STATE_FILE" 2>/dev/null; then
+            _FLUSHED=$((_FLUSHED + 1))
+            log_handler 3 "Flushed state file $(basename "$_STATE_FILE")"
+        fi
+    done
+
+    if [ "$_FLUSHED" -gt 0 ]; then
+        log_handler 2 "Flushed $_FLUSHED state file(s)"
+    else
+        log_handler 3 "No state files to flush"
+    fi
+
+    return 0
+}
+
+################################################################################
+# check_write_access            - Check if we can write to a path
+#
+# DESCRIPTION:
+#   Determines if the current user has write access to a target path.
+#   If the path doesn't exist, checks the parent directory.
+#
+# USAGE:
+#   check_write_access <path>
+#
+# EXIT CODES:
+#   0 - Write access available
+#   1 - No write access
+################################################################################
+check_write_access() {
+    _PATH="$1"
+
+    if [ -e "$_PATH" ]; then
+        if [ -w "$_PATH" ]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    _PARENT=$(dirname "$_PATH")
+    if [ -w "$_PARENT" ]; then
+        return 0
+    fi
+
+    return 1
+}
+
+################################################################################
+# elevate_privileges            - Attempt privilege elevation via sudo
+#
+# DESCRIPTION:
+#   Attempts to elevate privileges using sudo if available and needed.
+#   Returns success if already running as root or sudo elevation succeeds.
+#   Uses POSIX-compliant sudo syntax.
+#
+# USAGE:
+#   elevate_privileges
+#
+# USES:
+#   log_handler()
+#
+# EXIT CODES:
+#   0 - Privileges sufficient (root or sudo available)
+#   1 - Privilege elevation failed
+################################################################################
+elevate_privileges() {
+    if [ "$(id -u 2>/dev/null)" -eq 0 ]; then
+        log_handler 3 "Already running as root"
+        return 0
+    fi
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        log_handler 1 "sudo not available and not running as root"
+        return 1
+    fi
+
+    log_handler 2 "Attempting privilege elevation with sudo"
+    if sudo -v 2>/dev/null; then
+        log_handler 3 "sudo credentials validated"
+        return 0
+    else
+        log_handler 1 "sudo privilege elevation failed"
+        return 1
+    fi
+}
+
+################################################################################
+# run_with_sudo                 - Execute command with sudo if needed
+#
+# DESCRIPTION:
+#   Executes a command with sudo if the current user is not root.
+#   Uses POSIX-compliant sudo syntax.
+#
+# USAGE:
+#   run_with_sudo <command> [args...]
+#
+# USES:
+#   log_handler()
+#
+# EXIT CODES:
+#   Exit code of the executed command
+################################################################################
+run_with_sudo() {
+    if [ "$(id -u 2>/dev/null)" -eq 0 ]; then
+        "$@"
+        return $?
+    fi
+
+    if command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+        return $?
+    fi
+
+    log_handler 1 "Cannot elevate privileges: sudo not available"
+    return 1
+}
+
+################################################################################
+# install_script                - Install throwawaydeadd to system
+#
+# DESCRIPTION:
+#   Installs throwawaydeadd to a target location with appropriate permissions.
+#   Default installation path: /usr/local/bin/keepalived/throwawaydeadd
+#   Automatically attempts privilege elevation via sudo if needed.
+#
+# USAGE:
+#   install_script [<target_path>]
+#
+# USES:
+#   log_handler()
+#   check_write_access()
+#   elevate_privileges()
+#   run_with_sudo()
+#
+# ARGUMENTS:
+#   target_path                 - Installation path (default:
+#                                 /usr/local/bin/keepalived/throwawaydeadd)
+#                                 Can be a directory (uses default name) or
+#                                 a full file path
+#
+# EXIT CODES:
+#   0 - Installation successful
+#   1 - Installation failed
+################################################################################
+install_script() {
+    _TARGET="${1:-/usr/local/bin/keepalived/throwawaydeadd}"
+    _SCRIPT_PATH="$0"
+
+    if [ ! -f "$_SCRIPT_PATH" ]; then
+        log_handler 1 "Cannot locate script to install: $_SCRIPT_PATH"
+        return 1
+    fi
+
+    if [ -d "$_TARGET" ]; then
+        _TARGET="$_TARGET/throwawaydeadd"
+    fi
+
+    _TARGET_DIR=$(dirname "$_TARGET")
+
+    if ! check_write_access "$_TARGET_DIR"; then
+        log_handler 2 "Insufficient permissions for $_TARGET_DIR, attempting elevation"
+        if ! elevate_privileges; then
+            log_handler 1 "Cannot install to $_TARGET_DIR (permission denied)"
+            return 1
+        fi
+    fi
+
+    if [ ! -d "$_TARGET_DIR" ]; then
+        log_handler 2 "Creating installation directory $_TARGET_DIR"
+        if ! run_with_sudo mkdir -p "$_TARGET_DIR" 2>/dev/null; then
+            log_handler 1 "Failed to create directory $_TARGET_DIR"
+            return 1
+        fi
+    fi
+
+    if ! run_with_sudo cp "$_SCRIPT_PATH" "$_TARGET" 2>/dev/null; then
+        log_handler 1 "Failed to copy script to $_TARGET"
+        return 1
+    fi
+
+    if ! run_with_sudo chmod 755 "$_TARGET" 2>/dev/null; then
+        log_handler 1 "Failed to set executable permissions on $_TARGET"
+        return 1
+    fi
+
+    log_handler 2 "Installation successful: $_TARGET"
+    return 0
+}
+
+################################################################################
+# uninstall_script              - Uninstall throwawaydeadd from system
+#
+# DESCRIPTION:
+#   Removes throwawaydeadd installation from the system.
+#   Removes the installation directory if empty after deletion.
+#   Automatically attempts privilege elevation via sudo if needed.
+#
+# USAGE:
+#   uninstall_script [<target_path>]
+#
+# USES:
+#   log_handler()
+#   check_write_access()
+#   elevate_privileges()
+#   run_with_sudo()
+#
+# ARGUMENTS:
+#   target_path                 - Installation path to remove (default:
+#                                 /usr/local/bin/keepalived/throwawaydeadd)
+#
+# EXIT CODES:
+#   0 - Uninstallation successful or file not found
+#   1 - Uninstallation failed
+################################################################################
+uninstall_script() {
+    _TARGET="${1:-/usr/local/bin/keepalived/throwawaydeadd}"
+    _TARGET_DIR=$(dirname "$_TARGET")
+
+    if [ ! -f "$_TARGET" ]; then
+        log_handler 2 "Installation not found at $_TARGET"
+        return 0
+    fi
+
+    if ! check_write_access "$_TARGET"; then
+        log_handler 2 "Insufficient permissions for $_TARGET, attempting elevation"
+        if ! elevate_privileges; then
+            log_handler 1 "Cannot uninstall from $_TARGET (permission denied)"
+            return 1
+        fi
+    fi
+
+    if ! run_with_sudo rm -f "$_TARGET" 2>/dev/null; then
+        log_handler 1 "Failed to remove $_TARGET"
+        return 1
+    fi
+
+    log_handler 2 "Uninstalled: $_TARGET"
+
+    if [ -d "$_TARGET_DIR" ]; then
+        if ! run_with_sudo rmdir "$_TARGET_DIR" 2>/dev/null; then
+            log_handler 3 "Installation directory not empty, leaving: $_TARGET_DIR"
+        else
+            log_handler 3 "Removed empty installation directory: $_TARGET_DIR"
+        fi
+    fi
+
+    return 0
+}
+
+################################################################################
+# display_paged                 - Display text with pager if available
+#
+# DESCRIPTION:
+#   Pipes input to less or more if terminal is interactive, otherwise prints
+#   directly. Gracefully falls back if pager is unavailable.
+#
+# USAGE:
+#   display_paged < file
+#   command | display_paged
+#
+# EXIT CODES:
+#   0 - Display successful
+#   1 - Display failed (pager error)
+################################################################################
+display_paged() {
+    if [ -t 1 ]; then
+        if command -v less >/dev/null 2>&1; then
+            less -RF
+            return $?
+        elif command -v more >/dev/null 2>&1; then
+            more
+            return $?
+        else
+            cat
+            return $?
+        fi
+    else
+        cat
+        return $?
+    fi
+}
+
+################################################################################
+# show_warranty_information     - Display GPL warranty disclaimer
+#
+# DESCRIPTION:
+#   Displays sections 15-17 of the GNU General Public License v3.0 which
+#   contain the warranty disclaimer and limitation of liability.
+#
+# USAGE:
+#   show_warranty_information
+#
+# USES:
+#   display_paged()
+#
+# EXIT CODES:
+#   0 - Display successful
+#   1 - Display failed
+################################################################################
+show_warranty_information() {
+    _WARRANTY_TEXT=$(cat << 'EOF'
+                    NO WARRANTY
+
+  15. Disclaimer of Warranty.
+
+  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
+  APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+  HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+  OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+  PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+  IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+  ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+
+  16. Limitation of Liability.
+
+  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+  WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+  THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+  GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+  USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+  DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+  PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+  EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+  SUCH DAMAGES.
+
+  17. Interpretation of Sections 15 and 16.
+
+  If the disclaimer of warranty and limitation of liability provided
+  above cannot be given local legal effect according to their terms,
+  reviewing courts shall apply local law that most closely approximates
+  an absolute waiver of all civil liability in connection with the
+  Program, unless a warranty or assumption of liability accompanies a
+  copy of the Program in return for a fee.
+
+  For the complete GNU General Public License v3.0, visit:
+  https://www.gnu.org/licenses/gpl-3.0.html
+EOF
+)
+    printf "%s" "$_WARRANTY_TEXT" | display_paged
+    return $?
+}
+
+################################################################################
+# show_distribution_conditions  - Display GPL redistribution conditions
+#
+# DESCRIPTION:
+#   Displays sections 4-6 of the GNU General Public License v3.0 which
+#   describe the terms and conditions for copying, distribution, and
+#   modification of the program.
+#
+# USAGE:
+#   show_distribution_conditions
+#
+# USES:
+#   display_paged()
+#
+# EXIT CODES:
+#   0 - Display successful
+#   1 - Display failed
+################################################################################
+show_distribution_conditions() {
+    _CONDITIONS_TEXT=$(cat << 'EOF'
+            TERMS AND CONDITIONS
+
+  4. Conveying Verbatim Copies.
+
+  You may convey verbatim copies of the Program's source code as you
+  receive it, in any medium, provided that you conspicuously and
+  appropriately publish on each copy an appropriate copyright notice;
+  keep intact all notices stating that this License and any
+  non-permissive terms added in accord with section 7 apply to the code;
+  keep intact all notices of the absence of any warranty; and give all
+  recipients a copy of this License along with the Program.
+
+  You may charge any price or no price for each copy that you convey,
+  and you may offer support or warranty protection for a fee.
+
+  5. Conveying Modified Source Versions.
+
+  You may convey a work based on the Program, or the modifications to
+  produce it from the Program, in the form of source code under the
+  terms of section 4, provided that you also meet all of these conditions:
+
+    a) The work must carry prominent notices stating that you modified
+    it, and giving a relevant date.
+
+    b) The work must carry prominent notices stating that it is
+    released under this License and any conditions added under section
+    7.  This requirement modifies the requirement in section 4 to
+    "keep intact all notices".
+
+    c) You must license the entire work, as a whole, under this
+    License to anyone who comes into possession of a copy.  This
+    License will therefore apply, along with any applicable section 7
+    additional terms, to the whole of the work, and all its parts,
+    regardless of how they are packaged.  This License gives no
+    permission to license the work in any other way, but it does not
+    invalidate such permission if you have separately received it.
+
+    d) If the work has interactive user interfaces, each must display
+    Appropriate Legal Notices; however, if the Program has interactive
+    interfaces that do not display Appropriate Legal Notices, your
+    work need not make them do so.
+
+  A compilation of a covered work with other separate and independent
+  works, which are not by their nature extensions of the covered work,
+  and which are not combined with it such as to form a larger program,
+  in or on a volume of a storage or distribution medium, is called an
+  "aggregate" if the compilation and its resulting copyright are not
+  used to limit the access or legal rights of the compilation's users
+  beyond what the individual works permit.  Inclusion of a covered work
+  in an aggregate does not cause this License to apply to the other
+  parts of the aggregate.
+
+  6. Conveying Non-Source Forms.
+
+  You may convey a covered work in object code form under the terms
+  of sections 4 and 5, provided that you also convey the
+  machine-readable Corresponding Source under the terms of this License,
+  in one of these ways:
+
+    a) Convey the object code in, or embodied in, a physical product
+    (including a physical distribution medium), accompanied by the
+    Corresponding Source fixed on a durable physical medium
+    customarily used for software interchange.
+
+    b) Convey the object code in, or embodied in, a physical product
+    (including a physical distribution medium), accompanied by a
+    written offer, valid for at least three years and valid for as
+    long as you offer spare parts or customer support for that product
+    model, to give anyone who possesses the object code either (1) a
+    copy of the Corresponding Source for all the software in the
+    product that is covered by this License, on a durable physical
+    medium customarily used for software interchange, for a price no
+    more than your reasonable cost of physically performing this
+    conveying of source, or (2) access to copy the
+    Corresponding Source from a network server at no charge.
+
+    c) Convey individual copies of the object code with a copy of the
+    written offer to provide the Corresponding Source.  This
+    alternative is allowed only occasionally and noncommercially, and
+    only if you received the object code with such an offer, in accord
+    with subsection 6b.
+
+    d) Convey the object code by offering access from a designated
+    place (gratis or for a charge), and offer equivalent access to the
+    Corresponding Source in the same way through the same place at no
+    further charge.  You need not require recipients to copy the
+    Corresponding Source along with the object code.  If the place to
+    copy the object code is a network server, the Corresponding Source
+    may be on a different server (operated by you or a third party)
+    that supports equivalent copying facilities, provided you maintain
+    clear directions next to the object code saying where to find the
+    Corresponding Source.  Regardless of what server hosts the
+    Corresponding Source, you remain obligated to ensure that it is
+    available for as long as needed to satisfy these requirements.
+
+    e) Convey the object code using peer-to-peer transmission, provided
+    you inform other peers where the object code and Corresponding
+    Source of the work are being offered to the general public at no
+    charge under subsection 6d.
+
+  A separable portion of the object code, whose source code is excluded
+  from the Corresponding Source as a System Library, need not be
+  included in conveying the object code work.
+
+  A "User Product" is either (1) a "consumer product", which means any
+  tangible personal property which is normally used for personal, family,
+  or household purposes, or (2) anything designed or sold for incorporation
+  into a dwelling.  In determining whether a product is a consumer product,
+  doubtful cases shall be resolved in favor of coverage.  For a particular
+  product received by a particular user, "normally used" refers to a
+  typical or common use of that class of product, regardless of the status
+  of the particular user or of the way in which the particular user
+  actually uses, or expects or is expected to use, the product.  A product
+  is a consumer product regardless of whether the product has substantial
+  commercial, industrial or non-consumer uses, unless such uses represent
+  the only significant mode of use of the product.
+
+  "Installation Information" for a User Product means any methods,
+  procedures, authorization keys, or other information required to install
+  and execute modified versions of a covered work in that User Product from
+  a modified version of its Corresponding Source.  The information must
+  suffice to ensure that the continued functioning of the modified object
+  code is in no case prevented or interfered with solely because
+  modification has been made.
+
+  If you convey an object code work under this section in, or with, or
+  specifically for use in, a User Product, and the conveying occurs as
+  part of a transaction in which the right of possession and use of the
+  User Product is transferred to the recipient in perpetuity or for a
+  fixed term (regardless of how the transaction is characterized), the
+  Corresponding Source conveyed under this section must be accompanied
+  by the Installation Information.  But this requirement does not apply
+  if neither you nor any third party retains the ability to install
+  modified object code on the User Product (for example, the work has
+  been installed in ROM).
+
+  The requirement to provide Installation Information does not include a
+  requirement to continue to provide support service, warranty, or updates
+  for a work that has been modified or installed by the recipient, or for
+  the User Product in which it has been modified or installed.  Access to a
+  network may be denied when the modification itself materially and
+  adversely affects the operation of the network or violates the rules and
+  protocols for communication across the network.
+
+  Corresponding Source conveyed, and Installation Information provided,
+  in accord with this section must be in a format that is publicly
+  documented (and with an implementation available to the public in
+  source code form), and must require no special password or key for
+  unpacking, reading or copying.
+
+  For the complete GNU General Public License v3.0, visit:
+  https://www.gnu.org/licenses/gpl-3.0.html
+EOF
+)
+    printf "%s" "$_CONDITIONS_TEXT" | display_paged
+    return $?
+}
+
+################################################################################
+# show_interactive_notice       - Display GPL interactive notice
+#
+# DESCRIPTION:
+#   Displays the required GPL interactive notice informing users about the
+#   warranty disclaimer and redistribution conditions.
+#
+#   In your face, Stallman.
+#
+# USAGE:
+#   show_interactive_notice
+################################################################################
+show_interactive_notice() {
+    cat << EOF
+    throwawaydeadd $THROWAWAYDEADD_VERSION
+
+    Copyright (C) 2026  Hayden Pearce
+
+    This program comes with ABSOLUTELY NO WARRANTY; for details type 'show w'.
+    This is free software, and you are welcome to redistribute it
+    under certain conditions; type 'show c' for details.
+EOF
+}
+
+################################################################################
+# perform_service_action        - Run service action via detected init system
+#
+# DESCRIPTION:
+#   Attempts init systems in INIT_SYSTEM_ORDER:
+#   service systemctl, rc-service, sv, launchctl
+#
+# USAGE:
+#   perform_service_action <service> <action>
+#
+# USES:
+#   log_handler()
+#
+# EXIT CODES:
+#   0 - Success
+#   1 - Failure or unsupported init system
+################################################################################
+perform_service_action() {
+    _SERVICE="$1"
+    _ACTION="$2"
+
+    _ORDER="${INIT_SYSTEM_ORDER:-service systemctl rc-service sv launchctl}"
+    _ORDER=$(printf "%s" "$_ORDER" | tr ',' ' ')
+
+    for _INIT in $_ORDER; do
+        case "$_INIT" in
+            service)
+                if command -v service >/dev/null 2>&1; then
+                    log_handler 3 "Using service"
+                    service "$_SERVICE" "$_ACTION"
+                    return $?
+                fi
+                ;;
+            systemctl)
+                if command -v systemctl >/dev/null 2>&1; then
+                    log_handler 3 "Using systemctl"
+                    systemctl "$_ACTION" "$_SERVICE"
+                    return $?
+                fi
+                ;;
+            rc-service)
+                if command -v rc-service >/dev/null 2>&1; then
+                    log_handler 3 "Using rc-service"
+                    rc-service "$_SERVICE" "$_ACTION"
+                    return $?
+                fi
+                ;;
+            sv)
+                if command -v sv >/dev/null 2>&1; then
+                    log_handler 3 "Using sv (runit)"
+                    sv "$_ACTION" "$_SERVICE"
+                    return $?
+                fi
+                ;;
+            launchctl)
+                if command -v launchctl >/dev/null 2>&1; then
+                    log_handler 3 "Using launchctl"
+                    case "$_ACTION" in
+                        start)   launchctl start "$_SERVICE" ;;
+                        stop)    launchctl stop "$_SERVICE" ;;
+                        restart) launchctl kickstart -k "system/$_SERVICE" ;;
+                        reload)  launchctl kickstart -k "system/$_SERVICE" ;;
+                        *)       return 1 ;;
+                    esac
+                    return $?
+                fi
+                ;;
+            *)
+                log_handler 3 "Unknown init system in order list: $_INIT"
+                ;;
+        esac
+    done
+
+    log_handler 1 "No supported init system found (service|systemctl|rc-service|sv|launchctl)"
+    return 1
+}
+
+SERVICE=""
+MODE=""
+
+CONFIG_FILE=""
+CONFIG_EXPLICIT=false
+
+TYPE=""
+NAME=""
+STATE=""
+PRIORITY=""
+
+ARGUMENT_INDEX=0
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        h|-h|help|--help)
+            SERVICE="help"
+            shift
+            continue
+            ;;
+        v|-v|version|--version)
+            SERVICE="version"
+            shift
+            continue
+            ;;
+        s|-s|show|--show)
+            SERVICE="show"
+            case "${2:-}" in
+                w|-w|warranty|--warranty)
+                    MODE="w"
+                    shift 2
+                    ;;
+                c|-c|conditions|--conditions)
+                    MODE="c"
+                    shift 2
+                    ;;
+                *)
+                    MODE=""
+                    shift
+                    ;;
+            esac
+            continue
+            ;;
+        c|-c|config|--config)
+            if [ -z "$2" ]; then
+                log_handler 1 "The $1 option requires a file path argument"
+                exit 2
+            fi
+            CONFIG_FILE="$2"
+            CONFIG_EXPLICIT=true
+            shift 2
+            continue
+            ;;
+        f|-f|flush|--flush)
+            SERVICE="flush"
+            shift
+            continue
+            ;;
+        i|-i|install|--install)
+            SERVICE="install"
+            if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+                MODE="$2"
+                shift 2
+            else
+                MODE=""
+                shift
+            fi
+            continue
+            ;;
+        u|-u|uninstall|--uninstall)
+            SERVICE="uninstall"
+            if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+                MODE="$2"
+                shift 2
+            else
+                MODE=""
+                shift
+            fi
+            continue
+            ;;
+        -*)
+            log_handler 1 "Unknown option $1"
+            exit 2
+            ;;
+        *)
+            case "$ARGUMENT_INDEX" in
+                0) SERVICE="$1" ;;
+                1) MODE="$1" ;;
+                2) TYPE="$1" ;;
+                3) NAME="$1" ;;
+                4) STATE="$1" ;;
+                5) PRIORITY="$1" ;;
+            esac
+            ARGUMENT_INDEX=$((ARGUMENT_INDEX + 1))
+            shift
+            ;;
+    esac
+done
+
+case "$SERVICE" in
+    help)
+        show_documentation | display_paged
+        exit $?
+        ;;
+    version)
+        cat << EOF
+  throwawaydeadd                - An oddly complex VRRP check/notify script
+
+  VERSION:
+    $THROWAWAYDEADD_VERSION
+
+  COPYRIGHT:
+    Copyright (C) 2026 Hayden Pearce
+
+  LICENSE:
+    GNU General Public License v3.0 or later (GPL-3.0+)
+    https://gnu.org/licenses/gpl-3.0.html
+EOF
+        exit 0
+        ;;
+    flush)
+        flush_state_files
+        exit $?
+        ;;
+    install)
+        install_script "$MODE"
+        exit $?
+        ;;
+    uninstall)
+        uninstall_script "$MODE"
+        exit $?
+        ;;
+    show)
+        case "$MODE" in
+            w) 
+                if show_warranty_information; then
+                    exit 0
+                else
+                    exit 1
+                fi
+                ;;
+            c) 
+                if show_distribution_conditions; then
+                    exit 0
+                else
+                    exit 1
+                fi
+                ;;
+            *)
+                show_interactive_notice
+                exit 0
+                ;;
+        esac
+        ;;
+esac
+
+if [ -n "$SERVICE" ]; then
+    case "$SERVICE" in
+        *[!A-Za-z0-9_.-]*)
+            log_handler 1 "Invalid service name '$SERVICE' (allowed: A-Za-z0-9_.-)"
+            exit 2
+            ;;
+    esac
+fi
+
+if [ -z "$CONFIG_FILE" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    if [ -n "$SERVICE" ]; then
+        CONFIG_FILE="$SCRIPT_DIR/${SERVICE}.conf"
+    else
+        CONFIG_FILE="$SCRIPT_DIR/throwawaydeadd.conf"
+    fi
+fi
+
+if [ -f "$CONFIG_FILE" ]; then
+    if [ -r "$CONFIG_FILE" ]; then
+        if ! check_config_permissions "$CONFIG_FILE"; then
+            exit 3
+        fi
+        log_handler 2 "Sourcing config file $CONFIG_FILE"
+        if ! awk '
+            /^[[:space:]]*$/ { next }
+            /^[[:space:]]*#/ { next }
+            /^[A-Z_][A-Z0-9_]*=/ { next }
+            { print NR ": " $0; exit 1 }
+        ' "$CONFIG_FILE"; then
+            log_handler 1 "Config file contains invalid lines (MUST be uppercase VAR=val format)"
+            exit 3
+        fi
+        set -a
+        # shellcheck disable=SC1090 # /*fuck up shellcheck, just fuck up*/
+        . "$CONFIG_FILE"
+        set +a
+    else
+        log_handler 1 "Config file is not readable $CONFIG_FILE"
+        exit 3
+    fi
+else
+    if check_is_true "$CONFIG_EXPLICIT"; then
+        log_handler 1 "Config file not found $CONFIG_FILE"
+        exit 3
+    fi
+    log_handler 3 "No configuration file found, proceeding with defaults"
+fi
+
+VERBOSITY="${THROWAWAYDEADD_VERBOSITY:-${VERBOSITY:-0}}"
+case "$VERBOSITY" in
+    0|1|2|3) ;;
+    *)
+        printf "[ERROR]: Invalid VERBOSITY '%s', defaulting to 0\n" "$VERBOSITY" >&2
+        VERBOSITY=0
+        ;;
+esac
+readonly VERBOSITY
+
+INIT_SYSTEM_ORDER="${INIT_SYSTEM_ORDER:-service,systemctl,rc-service,sv,launchctl}"
+readonly INIT_SYSTEM_ORDER
+
+STATE_CACHE_TIMEOUT="${STATE_CACHE_TIMEOUT:-30}"
+case "$STATE_CACHE_TIMEOUT" in
+    ''|*[!0-9]*)
+        printf "[ERROR]: Invalid STATE_CACHE_TIMEOUT '%s', defaulting to 30\n" "$STATE_CACHE_TIMEOUT" >&2
+        STATE_CACHE_TIMEOUT=30
+        ;;
+esac
+readonly STATE_CACHE_TIMEOUT
+
+STATE_CACHE_CLEANUP="${STATE_CACHE_CLEANUP:-300}"
+case "$STATE_CACHE_CLEANUP" in
+    ''|*[!0-9]*)
+        printf "[ERROR]: Invalid STATE_CACHE_CLEANUP '%s', defaulting to 300\n" "$STATE_CACHE_CLEANUP" >&2
+        STATE_CACHE_CLEANUP=300
+        ;;
+esac
+readonly STATE_CACHE_CLEANUP
+
+log_handler 3 "Verbosity set to $VERBOSITY"
+log_handler 3 "State cache timeout: $STATE_CACHE_TIMEOUT seconds"
+log_handler 3 "State cache cleanup threshold: $STATE_CACHE_CLEANUP seconds"
+
+if [ -z "$MODE" ]; then
+    MODE_LOWER=""
+else
+    MODE_LOWER=$(printf "%s" "$MODE" | tr '[:upper:]' '[:lower:]')
+fi
+
+log_handler 3 "SERVICE=$SERVICE, MODE=$MODE_LOWER"
+
+if [ -z "$SERVICE" ] || [ -z "$MODE" ]; then
+    show_interactive_notice
+    cat << 'EOF' >&2
+
+  USAGE:
+    throwawaydeadd [<service> <mode>] [OPTIONS] [vrrp_args...]
+    throwawaydeadd show w|c          - Display warranty or conditions
+    throwawaydeadd flush             - Remove all cached state files
+    throwawaydeadd install PATH      - Install to system (default:
+                                       /usr/local/bin/keepalived/throwawaydeadd)
+    throwawaydeadd uninstall PATH    - Uninstall from system
+EOF
+    exit 2
+fi
+
+readonly CONFIG_FILE MODE MODE_LOWER NAME PRIORITY SERVICE STATE TYPE
+
+case "$MODE_LOWER" in
+    check)
+        if ! cleanup_state_files "$STATE_CACHE_CLEANUP"; then
+            log_handler 2 "State cache cleanup reported errors"
+        fi
+
+        log_handler 3 "Checking service with cache timeout: $STATE_CACHE_TIMEOUT seconds"
+
+        check_cached_state "$SERVICE" "$STATE_CACHE_TIMEOUT"
+        _CACHE_RC=$?
+
+        if [ "$_CACHE_RC" -eq 0 ]; then
+            log_handler 3 "$SERVICE was found (cached)"
+            exit 0
+        elif [ "$_CACHE_RC" -eq 1 ]; then
+            log_handler 2 "$SERVICE not found (cached)"
+            exit 1
+        fi
+
+        log_handler 3 "Cache miss or invalid, performing live check"
+        if command -v pgrep >/dev/null 2>&1; then
+            if pgrep -x "$SERVICE" >/dev/null; then
+                if ! update_state_file "$SERVICE" 0; then
+                    log_handler 2 "Failed to update cache state for $SERVICE"
+                fi
+                log_handler 3 "$SERVICE was found"
+                exit 0
+            else
+                if ! update_state_file "$SERVICE" 1; then
+                    log_handler 2 "Failed to update cache state for $SERVICE"
+                fi
+                log_handler 2 "$SERVICE not found"
+                exit 1
+            fi
+        else
+            log_handler 3 "pgrep command not found, falling back to killall -0"
+            if killall -0 "$SERVICE" 2>/dev/null; then
+                _EXIT_CODE=0
+            else
+                _EXIT_CODE=1
+            fi
+            if ! update_state_file "$SERVICE" "$_EXIT_CODE"; then
+                log_handler 2 "Failed to update cache state for $SERVICE"
+            fi
+            log_handler 2 "$SERVICE check returned $_EXIT_CODE"
+            exit "$_EXIT_CODE"
+        fi
+        ;;
+    notify)
+        if [ -z "$STATE" ]; then
+            log_handler 1 "Missing VRRP state"
+            exit 2
+        fi
+        IS_MASTER_RAW="${IS_MASTER:-false}"
+        if check_is_true "$IS_MASTER_RAW"; then
+            ROLE=MASTER
+        else
+            ROLE=BACKUP
+        fi
+        STATE_UPPER=$(printf "%s" "$STATE" | tr '[:lower:]' '[:upper:]')
+        ROLE_UPPER=$(printf "%s" "$ROLE" | tr '[:lower:]' '[:upper:]')
+        ACTION_KEY="${ROLE_UPPER}_IS_${STATE_UPPER}"
+        ACTION="$(printenv "$ACTION_KEY")"
+        if [ -z "$ACTION" ]; then
+            ACTION="none"
+        fi
+        ACTION_LOWER=$(upper_to_lower "$ACTION")
+        log_handler 2 "Role=$ROLE_UPPER, State=$STATE_UPPER, Action=$ACTION_LOWER"
+        case "$ACTION_LOWER" in
+            none)
+                log_handler 3 "No action for $ACTION_KEY"
+                ;;
+            start|stop|restart|reload)
+                log_handler 2 "Service action $ACTION_LOWER $SERVICE"
+                if perform_service_action "$SERVICE" "$ACTION_LOWER"; then
+                    log_handler 2 "Service $ACTION_LOWER succeeded for $SERVICE"
+                else
+                    log_handler 1 "Service $ACTION_LOWER failed for $SERVICE"
+                    exit 1
+                fi
+                ;;
+            *)
+                log_handler 1 "Unknown action $ACTION for action key $ACTION_KEY"
+                exit 1
+                ;;
+        esac
+        log_handler 2 "$TYPE $NAME ($SERVICE) -> $STATE ($PRIORITY)"
+        exit 0
+        ;;
+    *)
+        log_handler 1 "Unknown throwawaydeadd script mode $MODE"
+        exit 2
+        ;;
+esac
