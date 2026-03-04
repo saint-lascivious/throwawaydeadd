@@ -407,6 +407,13 @@ journalctl -t throwawaydeadd
 tail -f /var/log/syslog | grep throwawaydeadd
 ```
 
+## Known Issues
+- Caching may cause delayed detection of service state changes if `STATE_CACHE_TIMEOUT` is set too high
+- Init system detection may fail on uncommon or custom init systems
+- Configuration file validation is basic and may not catch all malformed files
+- Actions are limited to basic service commands and may not cover all use cases
+- Yes
+
 ## Troubleshooting
 
 ### Service Check Failing
