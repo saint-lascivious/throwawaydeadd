@@ -121,7 +121,7 @@ BACKUP_IS_BACKUP=none
 
 **INIT_SYSTEM_ORDER** (default: `service,systemctl,rc-service,sv,launchctl`)
 
-Comma-separated list of init systems to attempt in order. The script will use the first available system.
+Comma or space separated list of init systems to attempt in order. The script will use the first available system.
 
 **Example:**
 ```bash
@@ -244,10 +244,10 @@ Arguments passed by keepalived:
 | `h` | `--help` | Display help message |
 | `v` | `--version` | Display version information |
 | `s` | `--show` | Display warranty (w) or license conditions (c) |
-| `c` | `--config` PATH | Path to configuration file |
+| `c` | `--config [PATH]` | Path to configuration file |
 | `f` | `--flush` | Remove all cached state files |
-| `i` | `--install` PATH | Install script to location (default: /usr/local/bin/keepalived/throwawaydeadd) |
-| `u` | `--uninstall` PATH | Uninstall script from location |
+| `i` | `--install [PATH]` | Install script to location (default: /usr/local/bin/keepalived/throwawaydeadd) |
+| `u` | `--uninstall [PATH]` | Uninstall script from location |
 
 ### Examples
 
