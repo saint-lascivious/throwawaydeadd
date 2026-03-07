@@ -1,12 +1,15 @@
 #!/bin/sh
 
+THROWAWAYDEADD_VERSION="0.0.0-master"
+readonly THROWAWAYDEADD_VERSION
+
 ################################################################################
-# show_ascii_banner             - Display colorful ASCII art banner
+# show_ascii_banner             - Display colourful (maybe) ASCII art banner
 #
 # DESCRIPTION:
-#   Displays the throwawaydeadd ASCII banner in rainbow colors (red, orange,
-#   yellow, green, blue, [blank], violet) line by line.
-#   Falls back to plain text if terminal doesn't support colors.
+#   Displays the throwawaydeadd ASCII banner in rainbow colours (red, orange,
+#   yellow, green, blue, indigo [but blank], violet) line by line.
+#   Falls back to plain text if terminal doesn't support colours.
 #
 # USAGE:
 #   show_ascii_banner
@@ -19,17 +22,17 @@ show_ascii_banner() {
         _YELLOW='\033[33m'
         _GREEN='\033[32m'
         _BLUE='\033[34m'
+        _INDIGO='\033[38;5;54m'
         _VIOLET='\033[35m'
         _RESET='\033[0m'
 
         printf "%b" \
-            "${_RED}     _   _                                            _             _    _ \n" \
+            "${_RED}     _   _                                            _             _    _\n" \
             "${_ORANGE}    | |_| |_  _ _ _____ __ ____ ___ __ ____ _ _  _ __| |___ __ _ __| |__| |\n" \
             "${_YELLOW}    |  _| ' \\| '_/ _ \\ V  V / _\` \\ V  V / _\` | || / _\` / -_) _\` / _\` / _\` |\n" \
             "${_GREEN}     \\__|_||_|_| \\___/\\_/\\_/\\__,_|\\_/\\_/\\__,_|\\_, \\__,_\\___\\__,_\\__,_\\__,_|\n" \
-            "${_BLUE}                                              |__/                             \n\n" \
-            "${_VIOLET}  throwawaydeadd                - An oddly complex VRRP check/notify script${_RESET}\n" \
-            "${_RESET}"
+            "${_BLUE}                                              |__/\n\n" \
+            "${_VIOLET}  throwawaydeadd                - An oddly complex VRRP check/notify script${_RESET}\n\n"
     else
         cat << 'EOF'
      _   _                                            _             _    _ 
@@ -39,14 +42,14 @@ show_ascii_banner() {
                                               |__/
 
   throwawaydeadd                - An oddly complex VRRP check/notify script
+
 EOF
     fi
 }
 
 show_documentation() {
     show_ascii_banner
-    cat << 'DOCEOF'
-
+    cat << EOF
   DESCRIPTION:
     A wildly convoluted VRRP tracking script that accepts the service name
     and mode as command-line arguments, with optional config file support.
@@ -141,45 +144,33 @@ show_documentation() {
     3                           - Config file error
                                   File not found or not readable
 
-  LICENSE:
-    GNU General Public License v3.0 or later (GPL-3.0+)
-
-        This program is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
-
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-  VERSION HISTORY:
-
-    0.0.0 (Development) - Initial release
-                          Wanna see something cool? Check out, this fukken'
-                          thing.
-    0.0.1-development   - Obligatory ascii header
-                          Adds an obnoxious ascii text header in README and
-                          throwawaydeadd show_documentation(), as is required
-                          by nerd law.
-    0.1.0-master        - Refactor and cleanup ascii banner
-                          Implement show_ascii_banner() to display colorful
-                          ascii art banner, with fallback to plain text if
-                          colors aren't supported. Update show_*() functions
-                          to call the banner function. Use PATH -> [PATH] in
-                          examples to denote that a path is optional. Realise
-                          we are in fact in the master branch.
+  VERSION:
+    $THROWAWAYDEADD_VERSION
 
   AUTHOR:
     saint-lascivious (Hayden Pearce)
     https://github.com/saint-lascivious
 
   COPYRIGHT:
-    (C) 2026 Hayden Pearce. All rights reserved.
+    Copyright (C) 2026 saint-lascivious (Hayden Pearce).
+    All rights reserved.
+
+  LICENSE:
+    GNU General Public License v3.0 or later (GPL-3.0+)
+    https://gnu.org/licenses/gpl-3.0.html
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   HOMEPAGE:
     https://github.com/saint-lascivious/throwawaydeadd
@@ -192,10 +183,8 @@ show_documentation() {
     The script performs basic validation on config files to prevent sourcing
     of malformed files. Config files are checked for appropriate permissions
     and ownership to prevent unauthorized modification.
-DOCEOF
+EOF
 }
-
-THROWAWAYDEADD_VERSION="0.1.0-master"
 
 VERBOSITY="${THROWAWAYDEADD_VERBOSITY:-0}"
 
@@ -247,6 +236,8 @@ log_handler() {
         fi
     fi
 }
+
+log_handler 3 "Current version is $THROWAWAYDEADD_VERSION"
 
 ################################################################################
 # upper_to_lower                - Convert a string to lowercase
@@ -945,42 +936,42 @@ display_paged() {
 show_warranty_information() {
     show_ascii_banner
     _WARRANTY_TEXT=$(cat << 'EOF'
-                    NO WARRANTY
+                                   NO WARRANTY
 
   15. Disclaimer of Warranty.
 
   THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
-  APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
-  HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
-  OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
-  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-  PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
-  IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
-  ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
+OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
+IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
+ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 
   16. Limitation of Liability.
 
   IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-  WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
-  THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
-  GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
-  USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
-  DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
-  PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
-  EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-  SUCH DAMAGES.
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
+GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
+USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
+DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
+PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
+EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.
 
   17. Interpretation of Sections 15 and 16.
 
   If the disclaimer of warranty and limitation of liability provided
-  above cannot be given local legal effect according to their terms,
-  reviewing courts shall apply local law that most closely approximates
-  an absolute waiver of all civil liability in connection with the
-  Program, unless a warranty or assumption of liability accompanies a
-  copy of the Program in return for a fee.
+above cannot be given local legal effect according to their terms,
+reviewing courts shall apply local law that most closely approximates
+an absolute waiver of all civil liability in connection with the
+Program, unless a warranty or assumption of liability accompanies a
+copy of the Program in return for a fee.
 
-  For the complete GNU General Public License v3.0, visit:
-  https://www.gnu.org/licenses/gpl-3.0.html
+For the complete GNU General Public License v3.0, visit:
+https://www.gnu.org/licenses/gpl-3.0.html
 EOF
 )
     printf "%s" "$_WARRANTY_TEXT" | display_paged
@@ -1008,27 +999,27 @@ EOF
 show_distribution_conditions() {
     show_ascii_banner
     _CONDITIONS_TEXT=$(cat << 'EOF'
-            TERMS AND CONDITIONS
+                              TERMS AND CONDITIONS
 
   4. Conveying Verbatim Copies.
-
+	
   You may convey verbatim copies of the Program's source code as you
-  receive it, in any medium, provided that you conspicuously and
-  appropriately publish on each copy an appropriate copyright notice;
-  keep intact all notices stating that this License and any
-  non-permissive terms added in accord with section 7 apply to the code;
-  keep intact all notices of the absence of any warranty; and give all
-  recipients a copy of this License along with the Program.
-
+receive it, in any medium, provided that you conspicuously and
+appropriately publish on each copy an appropriate copyright notice;
+keep intact all notices stating that this License and any
+non-permissive terms added in accord with section 7 apply to the code;
+keep intact all notices of the absence of any warranty; and give all
+recipients a copy of this License along with the Program.
+	
   You may charge any price or no price for each copy that you convey,
-  and you may offer support or warranty protection for a fee.
-
+and you may offer support or warranty protection for a fee.
+	
   5. Conveying Modified Source Versions.
-
+	
   You may convey a work based on the Program, or the modifications to
-  produce it from the Program, in the form of source code under the
-  terms of section 4, provided that you also meet all of these conditions:
-
+produce it from the Program, in the form of source code under the
+terms of section 4, provided that you also meet all of these conditions:
+	
     a) The work must carry prominent notices stating that you modified
     it, and giving a relevant date.
 
@@ -1051,21 +1042,21 @@ show_distribution_conditions() {
     work need not make them do so.
 
   A compilation of a covered work with other separate and independent
-  works, which are not by their nature extensions of the covered work,
-  and which are not combined with it such as to form a larger program,
-  in or on a volume of a storage or distribution medium, is called an
-  "aggregate" if the compilation and its resulting copyright are not
-  used to limit the access or legal rights of the compilation's users
-  beyond what the individual works permit.  Inclusion of a covered work
-  in an aggregate does not cause this License to apply to the other
-  parts of the aggregate.
+works, which are not by their nature extensions of the covered work,
+and which are not combined with it such as to form a larger program,
+in or on a volume of a storage or distribution medium, is called an
+"aggregate" if the compilation and its resulting copyright are not
+used to limit the access or legal rights of the compilation's users
+beyond what the individual works permit.  Inclusion of a covered work
+in an aggregate does not cause this License to apply to the other
+parts of the aggregate.
 
   6. Conveying Non-Source Forms.
 
   You may convey a covered work in object code form under the terms
-  of sections 4 and 5, provided that you also convey the
-  machine-readable Corresponding Source under the terms of this License,
-  in one of these ways:
+of sections 4 and 5, provided that you also convey the
+machine-readable Corresponding Source under the terms of this License,
+in one of these ways:
 
     a) Convey the object code in, or embodied in, a physical product
     (including a physical distribution medium), accompanied by the
@@ -1109,57 +1100,57 @@ show_distribution_conditions() {
     charge under subsection 6d.
 
   A separable portion of the object code, whose source code is excluded
-  from the Corresponding Source as a System Library, need not be
-  included in conveying the object code work.
+from the Corresponding Source as a System Library, need not be
+included in conveying the object code work.
 
   A "User Product" is either (1) a "consumer product", which means any
-  tangible personal property which is normally used for personal, family,
-  or household purposes, or (2) anything designed or sold for incorporation
-  into a dwelling.  In determining whether a product is a consumer product,
-  doubtful cases shall be resolved in favor of coverage.  For a particular
-  product received by a particular user, "normally used" refers to a
-  typical or common use of that class of product, regardless of the status
-  of the particular user or of the way in which the particular user
-  actually uses, or expects or is expected to use, the product.  A product
-  is a consumer product regardless of whether the product has substantial
-  commercial, industrial or non-consumer uses, unless such uses represent
-  the only significant mode of use of the product.
+tangible personal property which is normally used for personal, family,
+or household purposes, or (2) anything designed or sold for incorporation
+into a dwelling.  In determining whether a product is a consumer product,
+doubtful cases shall be resolved in favor of coverage.  For a particular
+product received by a particular user, "normally used" refers to a
+typical or common use of that class of product, regardless of the status
+of the particular user or of the way in which the particular user
+actually uses, or expects or is expected to use, the product.  A product
+is a consumer product regardless of whether the product has substantial
+commercial, industrial or non-consumer uses, unless such uses represent
+the only significant mode of use of the product.
 
   "Installation Information" for a User Product means any methods,
-  procedures, authorization keys, or other information required to install
-  and execute modified versions of a covered work in that User Product from
-  a modified version of its Corresponding Source.  The information must
-  suffice to ensure that the continued functioning of the modified object
-  code is in no case prevented or interfered with solely because
-  modification has been made.
+procedures, authorization keys, or other information required to install
+and execute modified versions of a covered work in that User Product from
+a modified version of its Corresponding Source.  The information must
+suffice to ensure that the continued functioning of the modified object
+code is in no case prevented or interfered with solely because
+modification has been made.
 
   If you convey an object code work under this section in, or with, or
-  specifically for use in, a User Product, and the conveying occurs as
-  part of a transaction in which the right of possession and use of the
-  User Product is transferred to the recipient in perpetuity or for a
-  fixed term (regardless of how the transaction is characterized), the
-  Corresponding Source conveyed under this section must be accompanied
-  by the Installation Information.  But this requirement does not apply
-  if neither you nor any third party retains the ability to install
-  modified object code on the User Product (for example, the work has
-  been installed in ROM).
+specifically for use in, a User Product, and the conveying occurs as
+part of a transaction in which the right of possession and use of the
+User Product is transferred to the recipient in perpetuity or for a
+fixed term (regardless of how the transaction is characterized), the
+Corresponding Source conveyed under this section must be accompanied
+by the Installation Information.  But this requirement does not apply
+if neither you nor any third party retains the ability to install
+modified object code on the User Product (for example, the work has
+been installed in ROM).
 
   The requirement to provide Installation Information does not include a
-  requirement to continue to provide support service, warranty, or updates
-  for a work that has been modified or installed by the recipient, or for
-  the User Product in which it has been modified or installed.  Access to a
-  network may be denied when the modification itself materially and
-  adversely affects the operation of the network or violates the rules and
-  protocols for communication across the network.
+requirement to continue to provide support service, warranty, or updates
+for a work that has been modified or installed by the recipient, or for
+the User Product in which it has been modified or installed.  Access to a
+network may be denied when the modification itself materially and
+adversely affects the operation of the network or violates the rules and
+protocols for communication across the network.
 
   Corresponding Source conveyed, and Installation Information provided,
-  in accord with this section must be in a format that is publicly
-  documented (and with an implementation available to the public in
-  source code form), and must require no special password or key for
-  unpacking, reading or copying.
+in accord with this section must be in a format that is publicly
+documented (and with an implementation available to the public in
+source code form), and must require no special password or key for
+unpacking, reading or copying.
 
-  For the complete GNU General Public License v3.0, visit:
-  https://www.gnu.org/licenses/gpl-3.0.html
+For the complete GNU General Public License v3.0, visit:
+https://www.gnu.org/licenses/gpl-3.0.html
 EOF
 )
     printf "%s" "$_CONDITIONS_TEXT" | display_paged
@@ -1179,15 +1170,11 @@ EOF
 #   show_interactive_notice
 ################################################################################
 show_interactive_notice() {
-    show_ascii_banner
-    cat << EOF
-    throwawaydeadd $THROWAWAYDEADD_VERSION
-
-    Copyright (C) 2026  Hayden Pearce
-
-    This program comes with ABSOLUTELY NO WARRANTY; for details type 'show w'.
+    cat << 'EOF'
+    throwawaydeadd  Copyright (C) 2026 saint-lascivious (Hayden Pearce).
+    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
     This is free software, and you are welcome to redistribute it
-    under certain conditions; type 'show c' for details.
+    under certain conditions; type `show c' for details.
 EOF
 }
 
@@ -1383,8 +1370,13 @@ case "$SERVICE" in
   VERSION:
     $THROWAWAYDEADD_VERSION
 
+  AUTHOR:
+    saint-lascivious (Hayden Pearce)
+    https://github.com/saint-lascivious
+
   COPYRIGHT:
-    Copyright (C) 2026 Hayden Pearce
+    Copyright (C) 2026 saint-lascivious (Hayden Pearce).
+    All rights reserved.
 
   LICENSE:
     GNU General Public License v3.0 or later (GPL-3.0+)

@@ -476,13 +476,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 For the complete GPL-3.0+ license text, visit: https://www.gnu.org/licenses/gpl-3.0.html
 
-## Version History
-
-- **0.0.0 (Development)** - Initial release
-  Wanna see something cool? Check out, this fukken' thing.
-- **0.0.1-development**   - Obligatory ascii header
-  Adds an obnoxious ascii text header in README and throwawaydeadd show_documentation(), as is required by nerd law.
-
 ## Support & Contributions
 
 - **GitHub:** https://github.com/saint-lascivious/throwawaydeadd
@@ -494,4 +487,5 @@ For the complete GPL-3.0+ license text, visit: https://www.gnu.org/licenses/gpl-
 **saint-lascivious** (Hayden Pearce)
 
 - GitHub: https://github.com/saint-lascivious
-- Copyright © 2026 Hayden Pearce. All rights reserved.
+- Copyright (C) 2026 saint-lascivious (Hayden Pearce).
+  All rights reserved.
